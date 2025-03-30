@@ -1,0 +1,22 @@
+[package]
+name = "tui2048"
+version = "0.1.0"
+edition = "2024"
+
+# [lib]
+# crate-type = ["cdylib"]
+
+[[bin]]
+name = "tui2048_bin"
+path = "src/main.rs"
+
+[dependencies]
+chrono = { version = "0.4.40", default-features = false, features = ["std", "clock"] }
+crossterm = "0.28.1"
+indoc = "2.0.6"
+itoa = "1.0.15"
+jni = "0.21.1"
+rand = "0.9.0"
+ratatui = { version = "0.29.0", features = ["unstable-rendered-line-info"] }
+tui-rain = "1.0.1"
+unicode-width = "0.2.0"
