@@ -7,20 +7,10 @@ use crossterm::{
 };
 use ratatui::{Terminal, prelude::CrosstermBackend};
 
-use super::{
-    data::DataManager,
-    screens::{App, AppState},
-};
+use super::{data::DataManager, screens::{App, AppState}};
 
-pub fn start_app<D: DataManager>(mut data: D) -> Result<()> {
-    let mut app = App::new(
-        if data.is_first_launch() {
-            AppState::FirstStart
-        } else {
-            AppState::MainMenu
-        },
-        data,
-    );
+pub fn start_app<D: DataManager>(data: D) -> Result<()> {
+    let mut app = App::new(data);
     app.change_state(AppState::Gameplay);
 
     init()?;
@@ -42,6 +32,14 @@ pub fn init() -> Result<()> {
     stdout().execute(EnterAlternateScreen)?;
     stdout().execute(EnableMouseCapture)?;
     enable_raw_mode()?;
+
+    std::panic::set_hook(Box::new(|panic_info| {
+        let _ = leave();
+        println!("😱😱😱😱😱微距了😱😱😱😱😱");
+        println!("{panic_info}");
+        println!("😱😱😱😱😱😱😱😱😱😱😱😱😱");
+    }));
+
     Ok(())
 }
 

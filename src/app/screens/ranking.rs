@@ -1,11 +1,10 @@
-use std::{io::Result, time::Duration};
+use std::time::Duration;
 
 use chrono::TimeZone;
-use crossterm::event::{self, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::{
-    Frame, Terminal,
+    Frame,
     layout::{Alignment, Constraint, Layout, Margin, Rect},
-    prelude::Backend,
     style::{Color, Style, Stylize, palette::tailwind},
     text::Text,
     widgets::{
@@ -15,6 +14,8 @@ use ratatui::{
 };
 
 use crate::app::{math::inverse_lerp, structs::Player, time::TIME};
+
+use super::Activity;
 
 const ITEM_HEIGHT: usize = 1;
 
@@ -148,54 +149,33 @@ impl RankingActivity {
         self.longest_item_lens = (name_len, score_len, time_len);
     }
 
-    pub fn update<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
-        {
-            let time = TIME.read().unwrap();
-            self.app_time += time.delta;
+    fn update_input(&mut self, event: Event) {
+        let event::Event::Key(key) = event else {
+            return;
+        };
+
+        if matches!(key.code, KeyCode::Char('q')) || matches!(key.code, KeyCode::Esc) {
+            self.exit = true;
         }
 
-        terminal.draw(|frame| {
-            self.draw(frame);
-            self.fade_in(frame);
-        })?;
-
-        self.update_input()?;
-
-        Ok(())
-    }
-
-    pub fn update_input(&mut self) -> Result<()> {
-        if event::poll(Duration::from_millis(20))? {
-            let event = event::read()?;
-
-            let event::Event::Key(key) = event else {
-                return Ok(());
-            };
-
-            if matches!(key.code, KeyCode::Char('q')) || matches!(key.code, KeyCode::Esc) {
-                self.exit = true;
-            }
-
-            if key.kind != KeyEventKind::Press {
-                return Ok(());
-            }
-            let ctrl_pressed = key.modifiers.contains(KeyModifiers::CONTROL);
-            match key.code {
-                KeyCode::Up => {
-                    if ctrl_pressed {
-                        self.reset_row()
-                    } else {
-                        self.prev_row()
-                    }
+        if key.kind != KeyEventKind::Press {
+            return;
+        }
+        let ctrl_pressed = key.modifiers.contains(KeyModifiers::CONTROL);
+        match key.code {
+            KeyCode::Up => {
+                if ctrl_pressed {
+                    self.reset_row()
+                } else {
+                    self.prev_row()
                 }
-                KeyCode::Down => self.next_row(),
-                _ => (),
             }
+            KeyCode::Down => self.next_row(),
+            _ => (),
         }
-        Ok(())
     }
 
-    pub fn draw(&mut self, frame: &mut Frame<'_>) {
+    pub fn draw_ranking(&mut self, frame: &mut Frame<'_>) {
         let area = frame.area();
         let [table, footer] =
             Layout::vertical([Constraint::Min(3), Constraint::Length(3)]).areas(area);
@@ -281,7 +261,7 @@ impl RankingActivity {
         .column_highlight_style(Style::new().bg(tailwind::INDIGO.c400))
         .cell_highlight_style(Style::new().bg(tailwind::INDIGO.c400))
         .highlight_symbol(Text::from(vec![bar.into(), "".into()]))
-        .bg(tailwind::INDIGO.c700)
+        .bg(Color::Rgb(0, 0, 0))
         .highlight_spacing(HighlightSpacing::Always);
         frame.render_stateful_widget(t, area, &mut self.state);
     }
@@ -324,6 +304,24 @@ impl RankingActivity {
                     );
                 }
             }
+        }
+    }
+}
+
+impl Activity for RankingActivity {
+    fn draw(&mut self, frame: &mut Frame<'_>) {
+        self.draw_ranking(frame);
+        self.fade_in(frame);
+    }
+
+    fn update(&mut self, event: Option<Event>) {
+        {
+            let time = TIME.read().unwrap();
+            self.app_time += time.delta;
+        }
+
+        if let Some(event) = event {
+            self.update_input(event);
         }
     }
 }

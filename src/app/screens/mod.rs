@@ -1,6 +1,8 @@
-use std::io::Result;
+use std::{io::Result, time::Duration};
 
-use ratatui::{Terminal, prelude::Backend};
+use crossterm::event::{self, Event};
+use dialog::DIALOG_MANAGER;
+use ratatui::{Frame, Terminal, prelude::Backend};
 
 use super::data::DataManager;
 
@@ -9,10 +11,15 @@ mod gameplay;
 mod menu;
 mod ranking;
 
+pub trait Activity {
+    fn draw(&mut self, frame: &mut Frame<'_>);
+
+    fn update(&mut self, event: Option<Event>);
+}
+
 #[derive(Default)]
 pub enum AppState {
     #[default]
-    FirstStart,
     MainMenu,
     Gameplay,
     SwitchPlayer,
@@ -20,6 +27,7 @@ pub enum AppState {
     FindPlayer,
     EditPlayer,
     ListAllPlayer,
+    Quit,
 }
 
 #[derive(Default)]
@@ -34,9 +42,9 @@ pub struct App<D: DataManager> {
 }
 
 impl<D: DataManager> App<D> {
-    pub fn new(state: AppState, data_manager: D) -> Self {
+    pub fn new(data_manager: D) -> Self {
         Self {
-            state,
+            state: AppState::MainMenu,
             data_manager,
             ..Default::default()
         }
@@ -52,16 +60,38 @@ impl<D: DataManager> App<D> {
     pub fn update<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<bool> {
         crate::app::time::update_time();
 
-        match self.state {
-            AppState::Gameplay => self.update_gameplay(terminal)?,
-            _ => (),
-        }
+        let event = if event::poll(Duration::from_millis(20))? {
+            Some(event::read()?)
+        } else {
+            None
+        };
+
+        terminal.draw(|frame| {
+            let event_clone = event.clone();
+            match self.state {
+                AppState::Gameplay => self.update_gameplay(frame, event_clone),
+                AppState::MainMenu => self.update_menu(frame, event_clone),
+                _ => todo!(),
+            };
+
+            let mut dialog_manager = DIALOG_MANAGER.write().unwrap();
+            dialog_manager.draw(frame);
+            if let Some(event) = event {
+                dialog_manager.update_input(event);
+            }
+        })?;
 
         self.state_changed = false;
-        Ok(false)
+        if matches!(self.state, AppState::Quit) {
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
-    fn update_gameplay<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
+    fn update_menu(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {}
+
+    fn update_gameplay(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
         if self.state_changed {
             self.gameplay_activity = Some(gameplay::GameplayActivity::new(
                 self.data_manager.get_current_player(),
@@ -72,11 +102,15 @@ impl<D: DataManager> App<D> {
         }
 
         let gameplay = self.gameplay_activity.as_mut().unwrap();
-        if !gameplay.show_ranking {
-            gameplay.update(terminal)?;
 
-            if gameplay.exit && gameplay.game_over {
-                self.data_manager.save_current_player(gameplay.get_save());
+        if !gameplay.show_ranking {
+            gameplay.draw(frame);
+            gameplay.update(event);
+            if gameplay.exit {
+                if gameplay.game_over {
+                    self.data_manager.save_current_player(gameplay.get_save());
+                }
+
                 self.change_state(AppState::MainMenu);
             }
         } else {
@@ -87,7 +121,8 @@ impl<D: DataManager> App<D> {
                 ranking.by_score();
             }
 
-            ranking.update(terminal)?;
+            ranking.draw(frame);
+            ranking.update(event);
 
             if ranking.exit {
                 ranking.reset();
@@ -96,6 +131,5 @@ impl<D: DataManager> App<D> {
                 gameplay.queue_clear_message();
             }
         }
-        Ok(())
     }
 }

@@ -1,5 +1,4 @@
 use std::{
-    io::Result,
     rc::Rc,
     sync::{Arc, atomic::AtomicI8},
     time::{Duration, Instant},
@@ -8,9 +7,8 @@ use std::{
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use rand::Rng;
 use ratatui::{
-    Frame, Terminal,
+    Frame,
     layout::{Alignment, Constraint, Flex, Layout, Rect},
-    prelude::Backend,
     style::{Color, Style, palette::tailwind},
     widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph},
 };
@@ -24,7 +22,10 @@ use crate::app::{
     utils::{get_time_millis, rect_move, rect_scale},
 };
 
-use super::dialog::{Dialog, DialogManager};
+use super::{
+    Activity,
+    dialog::{DIALOG_MANAGER, Dialog},
+};
 
 pub struct GameplayActivity {
     cells: Grid,
@@ -46,8 +47,6 @@ pub struct GameplayActivity {
     pub show_ranking: bool,
 
     dead_dialog_time: Duration,
-
-    dialog_manager: DialogManager,
 }
 
 impl GameplayActivity {
@@ -71,50 +70,20 @@ impl GameplayActivity {
             app_time: Duration::default(),
             dead_dialog_time: Duration::default(),
             dead_dialog_chose: Arc::new(AtomicI8::new(-1)),
-
-            dialog_manager: DialogManager::new(),
         };
 
         this.animations.push(start_up(&mut this.cells));
         this
     }
 
-    pub fn update<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<()> {
-        // Update time
-        {
-            let time = TIME.read().unwrap();
-            self.app_time += time.delta;
-            if !self.game_over && self.play_started {
-                self.play_time += time.delta;
-            }
-        }
-
-        // Render
-        terminal.draw(|frame| {
-            self.gameplay_draw(frame);
-            self.dialog_manager.draw(frame);
-        })?;
-
-        // Update input
-        if event::poll(Duration::from_millis(20))? {
-            let event = event::read()?;
-            self.dialog_manager.update_input(event.clone());
-            self.gameplay_update_input(event);
-        }
-
-        if self.game_over {
-            if !self.dead_dialog && self.app_time > self.dead_dialog_time {
-                self.dead_dialog = true;
-                self.dead_time = get_time_millis();
-                self.queue_clear_message();
-            }
-            self.update_clear_chose();
-        }
-
-        Ok(())
-    }
-
     fn gameplay_update_input(&mut self, event: Event) {
+        {
+            let dialog_manager = DIALOG_MANAGER.read().unwrap();
+            if dialog_manager.has_dialog() {
+                return;
+            }
+        }
+
         let event::Event::Key(key) = event else {
             return;
         };
@@ -131,50 +100,48 @@ impl GameplayActivity {
         let mut pressed = false;
         let mut total_score = 0;
         let mut animations = Vec::new();
-        if !self.dialog_manager.has_dialog() {
-            match key.code {
-                KeyCode::Up => {
-                    let (anim, score) = move_up(&mut self.cells);
-                    animations.extend(anim);
-                    total_score += score as i32;
-                    pressed = true;
-                }
-                KeyCode::Down => {
-                    let (anim, score) = move_down(&mut self.cells);
-                    animations.extend(anim);
-                    total_score += score as i32;
-                    pressed = true;
-                }
-                KeyCode::Left => {
-                    let (anim, score) = move_left(&mut self.cells);
-                    animations.extend(anim);
-                    total_score += score as i32;
-                    pressed = true;
-                }
-                KeyCode::Right => {
-                    let (anim, score) = move_right(&mut self.cells);
-                    animations.extend(anim);
-                    total_score += score as i32;
-                    pressed = true;
-                }
-                _ => (),
+        match key.code {
+            KeyCode::Up => {
+                let (anim, score) = move_up(&mut self.cells);
+                animations.extend(anim);
+                total_score += score as i32;
+                pressed = true;
             }
-            if pressed {
-                if !animations.is_empty() {
-                    // 如果地块改变过
-                    add_cell(&mut self.cells)
-                        .iter()
-                        .for_each(|x| animations.push(*x));
-                }
-                animations.sort_by(|a, b| a.animation_type.partial_cmp(&b.animation_type).unwrap());
-                self.play_started = true;
-                self.animations = animations;
-                self.score += total_score;
-                self.game_over = check_game_over(&mut self.cells);
+            KeyCode::Down => {
+                let (anim, score) = move_down(&mut self.cells);
+                animations.extend(anim);
+                total_score += score as i32;
+                pressed = true;
             }
-            if self.game_over {
-                self.dead_dialog_time = self.app_time + Duration::from_secs(2);
+            KeyCode::Left => {
+                let (anim, score) = move_left(&mut self.cells);
+                animations.extend(anim);
+                total_score += score as i32;
+                pressed = true;
             }
+            KeyCode::Right => {
+                let (anim, score) = move_right(&mut self.cells);
+                animations.extend(anim);
+                total_score += score as i32;
+                pressed = true;
+            }
+            _ => (),
+        }
+        if pressed {
+            if !animations.is_empty() {
+                // 如果地块改变过
+                add_cell(&mut self.cells)
+                    .iter()
+                    .for_each(|x| animations.push(*x));
+            }
+            animations.sort_by(|a, b| a.animation_type.partial_cmp(&b.animation_type).unwrap());
+            self.play_started = true;
+            self.animations = animations;
+            self.score += total_score;
+            self.game_over = check_game_over(&mut self.cells);
+        }
+        if self.game_over {
+            self.dead_dialog_time = self.app_time + Duration::from_secs(2);
         }
     }
 
@@ -196,7 +163,7 @@ impl GameplayActivity {
     }
 
     #[allow(clippy::needless_range_loop)]
-    pub fn gameplay_draw(&mut self, frame: &mut Frame<'_>) {
+    fn gameplay_draw(&mut self, frame: &mut Frame<'_>) {
         let exp_out = Interpolation::ExpOut { value: 20.0 };
         let area = frame.area();
 
@@ -423,7 +390,8 @@ impl GameplayActivity {
         } else {
             ascii::the_end()
         };
-        self.dialog_manager.push(Dialog::new(
+        let mut dialog_manager = DIALOG_MANAGER.write().unwrap();
+        dialog_manager.push(Dialog::new(
             " 游戏结束 ",
             &format!(
                 "{}\n已经没有块可以移动了！\n\n最终成绩: {} 分\n最高成绩: {} 分 ({:+})\n最终用时: {}秒",
@@ -436,11 +404,7 @@ impl GameplayActivity {
             Alignment::Center,
             false,
             vec![String::from("重试"), String::from("查看排行"), String::from("退出")],
-            move |chose| {
-                dialog_chose
-                    .clone()
-                    .store(chose, std::sync::atomic::Ordering::Relaxed);
-            },
+            dialog_chose.clone(),
         ));
     }
 
@@ -468,6 +432,35 @@ impl GameplayActivity {
             score: self.score,
             time: self.play_time.as_secs() as i64,
             timestamp: self.dead_time,
+        }
+    }
+}
+
+impl Activity for GameplayActivity {
+    fn draw(&mut self, frame: &mut Frame<'_>) {
+        self.gameplay_draw(frame);
+    }
+
+    fn update(&mut self, event: Option<Event>) {
+        {
+            let time = TIME.read().unwrap();
+            self.app_time += time.delta;
+            if !self.game_over && self.play_started {
+                self.play_time += time.delta;
+            }
+        }
+
+        if let Some(event) = event {
+            self.gameplay_update_input(event);
+        }
+
+        if self.game_over {
+            if !self.dead_dialog && self.app_time > self.dead_dialog_time {
+                self.dead_dialog = true;
+                self.dead_time = get_time_millis();
+                self.queue_clear_message();
+            }
+            self.update_clear_chose();
         }
     }
 }

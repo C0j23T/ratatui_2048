@@ -1,4 +1,8 @@
-use std::{collections::VecDeque, time::Duration};
+use std::{
+    collections::VecDeque,
+    sync::{Arc, LazyLock, RwLock, atomic::AtomicI8},
+    time::Duration,
+};
 
 use crossterm::event::{
     Event, KeyCode, KeyEvent, KeyEventKind, MouseButton, MouseEvent, MouseEventKind,
@@ -17,6 +21,9 @@ use crate::app::{
     utils::rect_scale,
 };
 
+pub static DIALOG_MANAGER: LazyLock<RwLock<DialogManager>> =
+    LazyLock::new(|| RwLock::new(DialogManager::new()));
+
 pub struct DialogManager {
     queue: VecDeque<Dialog>,
     active: Option<Dialog>,
@@ -26,7 +33,7 @@ pub struct Dialog {
     title: String,
     content: String,
     buttons: Vec<String>,
-    callback: Box<dyn Fn(i8)>,
+    callback: Arc<AtomicI8>,
     content_alignment: Alignment,
     warp: bool,
 
@@ -37,13 +44,13 @@ pub struct Dialog {
     duration: Duration,
 }
 impl Dialog {
-    pub fn new<F: Fn(i8) + 'static>(
+    pub fn new(
         title: &str,
         content: &str,
         content_alignment: Alignment,
         warp: bool,
         mut buttons: Vec<String>,
-        callback: F,
+        callback: Arc<AtomicI8>,
     ) -> Self {
         if buttons.is_empty() {
             buttons = vec![String::from("确定")];
@@ -55,7 +62,7 @@ impl Dialog {
             content_alignment,
             warp,
             buttons: buttons.iter().take(3).cloned().collect(),
-            callback: Box::new(callback),
+            callback,
             active: -1,
             return_at_next_frame: false,
             rects: Vec::new(),
@@ -65,7 +72,7 @@ impl Dialog {
 }
 
 impl DialogManager {
-    pub fn new() -> Self {
+    fn new() -> Self {
         Self {
             queue: VecDeque::new(),
             active: None,
@@ -105,11 +112,11 @@ impl DialogManager {
             .flex(Flex::Center)
             .split(col[0]);
 
-        let progress = inverse_lerp(0.0..=0.8_f32, dialog.duration.as_secs_f32())
+        let progress = inverse_lerp(0.0..=0.6_f32, dialog.duration.as_secs_f32())
             .unwrap_or(0.0)
             .min(1.0);
-        let exp_out = Interpolation::ExpOut { value: 20.0 };
-        let window = rect_scale(window[0], exp_out.apply(progress));
+        let interpolation = Interpolation::SwingOut;
+        let window = rect_scale(window[0], interpolation.apply(progress));
         frame.render_widget(Clear, window);
         frame.render_widget(paragraph, window);
 
@@ -169,8 +176,9 @@ impl DialogManager {
                 return;
             };
             if dialog.return_at_next_frame {
-                let func = &dialog.callback;
-                func(dialog.active);
+                dialog
+                    .callback
+                    .store(dialog.active, std::sync::atomic::Ordering::Relaxed);
                 self.active = None;
                 return;
             }
