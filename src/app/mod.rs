@@ -1,6 +1,5 @@
 pub(crate) mod ascii;
 pub(crate) mod data;
-pub(crate) mod dialog;
 pub(crate) mod gameplay;
 pub(crate) mod math;
 pub(crate) mod screens;

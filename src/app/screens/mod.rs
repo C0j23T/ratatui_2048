@@ -38,6 +38,7 @@ pub struct App<D: DataManager> {
 
     gameplay_activity: Option<gameplay::GameplayActivity>,
     ranking_activity: Option<ranking::RankingActivity>,
+    menu_activity: Option<menu::MenuActivity>,
     gameplay_move_save: bool,
 }
 
@@ -45,6 +46,7 @@ impl<D: DataManager> App<D> {
     pub fn new(data_manager: D) -> Self {
         Self {
             state: AppState::MainMenu,
+            state_changed: true,
             data_manager,
             ..Default::default()
         }
@@ -66,6 +68,8 @@ impl<D: DataManager> App<D> {
             None
         };
 
+        let last_state_changed = self.state_changed;
+
         terminal.draw(|frame| {
             let event_clone = event.clone();
             match self.state {
@@ -81,7 +85,9 @@ impl<D: DataManager> App<D> {
             }
         })?;
 
-        self.state_changed = false;
+        if self.state_changed == last_state_changed {
+            self.state_changed = false;
+        }
         if matches!(self.state, AppState::Quit) {
             Ok(true)
         } else {
@@ -89,7 +95,18 @@ impl<D: DataManager> App<D> {
         }
     }
 
-    fn update_menu(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {}
+    fn update_menu(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
+        if self.state_changed {
+            self.menu_activity = Some(menu::MenuActivity::new());
+        }
+        let menu = self.menu_activity.as_mut().unwrap();
+        menu.draw(frame);
+        menu.update(event);
+
+        if menu.exit {
+            self.change_state(AppState::Quit);
+        }
+    }
 
     fn update_gameplay(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
         if self.state_changed {

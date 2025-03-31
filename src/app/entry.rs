@@ -11,7 +11,6 @@ use super::{data::DataManager, screens::{App, AppState}};
 
 pub fn start_app<D: DataManager>(data: D) -> Result<()> {
     let mut app = App::new(data);
-    app.change_state(AppState::Gameplay);
 
     init()?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;

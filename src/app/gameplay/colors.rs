@@ -4,6 +4,13 @@ pub fn rgb(r: u8, g: u8, b: u8) -> Color {
     Color::Rgb(r, g, b)
 }
 
+pub fn hex(hex: u32) -> Color {
+    let r = hex >> 16 & 0xff;
+    let g = hex >> 8 & 0xff;
+    let b = hex & 0xff;
+    Color::Rgb(r as u8, g as u8, b as u8)
+}
+
 pub fn color_setter(value: u16) -> Color {
     match value {
         0 => rgb(44, 58, 71),
