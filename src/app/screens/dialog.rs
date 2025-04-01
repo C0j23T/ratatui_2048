@@ -112,9 +112,7 @@ impl DialogManager {
             .flex(Flex::Center)
             .split(col[0]);
 
-        let progress = inverse_lerp(0.0..=0.6_f32, dialog.duration.as_secs_f32())
-            .unwrap_or(0.0)
-            .min(1.0);
+        let progress = inverse_lerp(0.0..=0.6_f32, dialog.duration.as_secs_f32());
         let interpolation = Interpolation::SwingOut;
         let window = rect_scale(window[0], interpolation.apply(progress));
         frame.render_widget(Clear, window);

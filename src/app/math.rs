@@ -1,7 +1,4 @@
-use std::{
-    f32::consts::PI,
-    ops::{Div, RangeInclusive, Sub},
-};
+use std::{f32::consts::PI, ops::RangeInclusive};
 
 /// 所有可用的曲线（插值）类型  
 /// 请参阅 [Interpolation - libGDX](https://libgdx.com/wiki/math-utils/interpolation)
@@ -263,16 +260,13 @@ impl ToF32 for f32 {
 }
 
 #[inline]
-pub fn inverse_lerp<T>(range: RangeInclusive<T>, value: T) -> Option<f32>
-where
-    T: Copy + PartialEq + Sub<T, Output = T> + Div<T, Output = T> + ToF32,
-{
+pub fn inverse_lerp(range: RangeInclusive<f32>, value: f32) -> f32 {
     let min = *range.start();
     let max = *range.end();
     if min == max {
-        None
+        1.0
     } else {
-        Some((value.to_f32() - min.to_f32()) / (max.to_f32() - min.to_f32()))
+        ((value.to_f32() - min.to_f32()) / (max.to_f32() - min.to_f32())).clamp(0.0, 1.0)
     }
 }
 

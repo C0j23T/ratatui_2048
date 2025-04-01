@@ -25,6 +25,7 @@ impl DataManager for DummyDataManager {
     fn get_players_best_except_self(&mut self) -> Vec<Player> {
         vec![
             Player {
+                id: 123,
                 name: String::from("DARE"),
                 score: 256,
                 time: 114,

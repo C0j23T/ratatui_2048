@@ -6,18 +6,30 @@ use rand::Rng;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Flex, Layout, Rect},
-    style::{Stylize, palette::tailwind},
-    widgets::{Block, BorderType, Borders, Paragraph},
+    style::{Color, Stylize, palette::tailwind},
+    widgets::{Block, BorderType, Borders, Clear, Paragraph},
 };
 use rolling_background::RollingBackground;
 
-use crate::app::{ascii, math::inverse_lerp, time::TIME, utils::rect_move};
+use crate::app::{
+    ascii,
+    gameplay::colors,
+    math::{inverse_lerp, Interpolation},
+    structs::Player,
+    time::TIME,
+    utils::{fade_in, rect_move},
+};
 
-use super::Activity;
+use super::{Activity, AppState};
 
 #[derive(Default)]
 pub struct MenuActivity {
     pub exit: bool,
+    player: Player,
+    state: MenuState,
+    selection: usize,
+    selected_time: Duration,
+    transition_time: Duration,
 
     app_time: Duration,
 
@@ -26,33 +38,187 @@ pub struct MenuActivity {
     bg_rect_b: Rect,
 }
 
+#[derive(Default)]
+pub enum MenuState {
+    #[default]
+    Login,
+    Entering,
+    Menu,
+    Exiting,
+}
+
 impl MenuActivity {
     pub fn new() -> Self {
         Self {
             exit: false,
+            selection: 2,
+            state: MenuState::Menu,
             ..Default::default()
         }
     }
-}
 
-impl Activity for MenuActivity {
-    fn draw(&mut self, frame: &mut Frame<'_>) {
+    pub fn set_player(&mut self, player: Player) {
+        self.player = player;
+    }
+
+    fn draw_frame(&mut self, mut menu: Rect, frame: &mut Frame<'_>) {
+        if matches!(self.state, MenuState::Entering) {
+            let area = frame.area();
+            let interpolation = Interpolation::PowOut { value: 5 };
+            let mut progress = inverse_lerp(0.5..=1.5, self.transition_time.as_secs_f32());
+            progress = interpolation.apply(progress);
+            menu = rect_move(menu, area, progress)
+        } else if matches!(self.state, MenuState::Exiting) {
+            let area = frame.area();
+            let interpolation = Interpolation::CircleOut;
+            let mut progress = inverse_lerp(0.0..=1.0, self.transition_time.as_secs_f32());
+            progress = interpolation.apply(progress);
+            menu = rect_move(area, menu, progress)
+        }
+
+        frame.render_widget(
+            Block::default().fg(tailwind::NEUTRAL.c700).bg(Color::Reset),
+            menu,
+        );
+
+        let [menu_top] = Layout::vertical([Constraint::Length(1)]).areas(menu);
+        let mut block = Block::bordered()
+            .border_type(BorderType::Rounded)
+            .borders(Borders::TOP | Borders::LEFT | Borders::RIGHT)
+            .fg(tailwind::INDIGO.c50);
+        if matches!(self.state, MenuState::Menu) {
+            block = block.title("─ Menu ");
+        }
+        frame.render_widget(block, menu_top);
+
+        let [_, menu_bottom] =
+            Layout::vertical([Constraint::Fill(1), Constraint::Length(1)]).areas(menu);
+        let mut block = Block::bordered()
+            .border_type(BorderType::Rounded)
+            .borders(Borders::BOTTOM | Borders::LEFT | Borders::RIGHT)
+            .title_alignment(Alignment::Right)
+            .fg(tailwind::INDIGO.c50);
+        if matches!(self.state, MenuState::Menu) {
+            block = block.title(" ( ↑ 或 ↓ ) 切换 | ( ⏎ ) 确定 ─");
+        }
+        frame.render_widget(block, menu_bottom);
+
+        let [menu_left] = Layout::horizontal([Constraint::Length(1)]).areas(menu);
+        let block = Block::bordered()
+            .border_type(BorderType::Rounded)
+            .borders(Borders::BOTTOM | Borders::LEFT | Borders::TOP)
+            .fg(tailwind::INDIGO.c50);
+        frame.render_widget(block, menu_left);
+
+        let [_, menu_right] =
+            Layout::horizontal([Constraint::Fill(1), Constraint::Length(1)]).areas(menu);
+        let block = Block::bordered()
+            .border_type(BorderType::Rounded)
+            .borders(Borders::BOTTOM | Borders::RIGHT | Borders::TOP)
+            .fg(tailwind::INDIGO.c50);
+        frame.render_widget(block, menu_right);
+    }
+
+    fn draw_menu(&mut self, menu: Rect, frame: &mut Frame<'_>) {
+        self.draw_frame(menu, frame);
+        if !self.render_menu() {
+            return;
+        }
+
+        let interpolation = Interpolation::ExpOut { value: 10.0 };
+        let mut progress = inverse_lerp(0.0..=0.3_f32, self.selected_time.as_secs_f32());
+        progress = 1.0 - interpolation.apply(progress);
+
+        let lines = Layout::vertical([Constraint::Length(1)].repeat(9)).split(menu);
+        let options = indoc::indoc! {"
+
+
+            进入游戏
+            账号登出
+            删除玩家
+            查找玩家
+            编辑玩家
+            查看世界排名
+            退出
+        "}
+        .split('\n');
+        let it = lines.into_iter().zip(options).enumerate();
+        it.for_each(|(i, (rect, text))| {
+            let flag = i > 1 && i == self.selection;
+            let mut bg = if flag {
+                let (r, g, b) = (238.0, 242.0, 255.0);
+                let factor = (self.app_time.as_secs_f32() * 2.0).sin() * 0.25 + 0.5;
+
+                Color::Rgb((r * factor) as u8, (g * factor) as u8, (b * factor) as u8)
+            } else {
+                Color::Reset
+            };
+            if matches!(self.state, MenuState::Entering) && flag {
+                let factor = (self.app_time.as_secs_f32() * 100.0) as i32 % 2 == 0;
+                if factor {
+                    bg = tailwind::INDIGO.c50
+                } else {
+                    bg = tailwind::INDIGO.c900
+                }
+            }
+
+            if flag {
+                let [_, bg_rect, _] = Layout::horizontal([
+                    Constraint::Length(1),
+                    Constraint::Fill(1),
+                    Constraint::Length(1),
+                ])
+                .areas(*rect);
+                frame.render_widget(Clear, bg_rect);
+                let block = Block::default().bg(bg);
+                frame.render_widget(block, bg_rect);
+            }
+
+            let fg = if flag {
+                if colors::brightness(bg) > 0.5 {
+                    tailwind::INDIGO.c900
+                } else {
+                    tailwind::INDIGO.c50
+                }
+            } else {
+                tailwind::INDIGO.c50
+            };
+
+            let text = if flag {
+                let spaces = [' ']
+                    .repeat((10.0 * progress) as usize)
+                    .into_iter()
+                    .collect::<String>();
+                format!("->>{spaces} {text} {spaces}<<-")
+            } else if text.is_empty() {
+                String::new()
+            } else {
+                format!("=- {text} -=")
+            };
+            let width = unicode_width::UnicodeWidthStr::width_cjk(text.as_str());
+            let [_, text_block, _] = Layout::horizontal([
+                Constraint::Fill(1),
+                Constraint::Length(width as u16),
+                Constraint::Fill(1),
+            ])
+            .flex(Flex::Center)
+            .areas(*rect);
+            let para = Paragraph::new(text).fg(fg).bg(bg);
+            frame.render_widget(para, text_block);
+        });
+    }
+
+    fn draw_bg(&mut self, frame: &mut Frame<'_>) {
         let area = frame.area();
 
-        let [_, title, menu, bottom] = Layout::vertical([
-            Constraint::Max(1),
-            Constraint::Percentage(60),
-            Constraint::Min(0),
+        let [_, title, _, _, bottom] = Layout::vertical([
+            Constraint::Fill(1),
+            Constraint::Length(13),
+            Constraint::Max(3),
+            Constraint::Length(11),
             Constraint::Max(1),
         ])
         .areas(area);
-        let [_, menu, _] = Layout::horizontal([
-            Constraint::Fill(1),
-            Constraint::Percentage(60),
-            Constraint::Fill(1),
-        ])
-        .flex(Flex::Center)
-        .areas(menu);
 
         // Title
         {
@@ -79,12 +245,21 @@ impl Activity for MenuActivity {
                 .borders(Borders::NONE)
                 .fg(tailwind::INDIGO.c200);
             frame.render_widget(block, bottom);
+
+            let block = Block::bordered()
+                .title_bottom(format!(" ID {}", self.player.id))
+                .title_alignment(Alignment::Left)
+                .borders(Borders::NONE)
+                .fg(tailwind::INDIGO.c200);
+            frame.render_widget(block, bottom);
         }
 
         // Background
         {
-            if self.app_time.as_secs() % 5 == 0 {
-                if !self.bg_changed {
+            let resized =
+                area.width != self.bg_rect_a.width || area.height != self.bg_rect_a.height;
+            if self.app_time.as_secs() % 5 == 0 || resized {
+                if !self.bg_changed || resized {
                     let length = 75;
                     let area_width = area.width as i32;
                     let area_height = area.height as i32;
@@ -105,25 +280,84 @@ impl Activity for MenuActivity {
             } else {
                 self.bg_changed = false;
             }
-            let progress = inverse_lerp(0.0..=10.0, self.app_time.as_secs_f32() % 10.0)
-                .unwrap_or(1.0)
-                .min(1.0);
+            let progress = inverse_lerp(0.0..=10.0, self.app_time.as_secs_f32() % 10.0);
             let rect = rect_move(self.bg_rect_a, self.bg_rect_b, progress);
             frame.render_widget(RollingBackground, rect);
         }
+    }
 
-        let menu_block = Block::bordered()
-            .border_type(BorderType::Rounded)
-            .title("Menu")
-            .fg(tailwind::INDIGO.c50);
-        frame.render_widget(menu_block, menu);
+    pub fn exiting_activity(&mut self) {
+        self.state = MenuState::Exiting;
+        self.transition_time = Duration::default();
+    }
+
+    pub fn can_enter_another_activity(&self) -> bool {
+        self.transition_time.as_secs_f32() >= 1.6
+    }
+
+    pub fn next_state(&self) -> Option<AppState> {
+        if !matches!(self.state, MenuState::Entering) {
+            return None;
+        }
+        match self.selection {
+            2 => Some(AppState::Gameplay),
+            3 => Some(AppState::SwitchPlayer),
+            4 => Some(AppState::RemovePlayer),
+            5 => Some(AppState::FindPlayer),
+            6 => Some(AppState::EditPlayer),
+            7 => Some(AppState::ListAllPlayer),
+            _ => None,
+        }
+    }
+
+    fn render_menu(&self) -> bool {
+        matches!(self.state, MenuState::Menu)
+            || matches!(self.state, MenuState::Entering)
+                && self.transition_time.as_secs_f32() <= 0.5
+            || matches!(self.state, MenuState::Exiting) && self.transition_time.as_secs_f32() >= 1.1
+    }
+}
+
+impl Activity for MenuActivity {
+    fn draw(&mut self, frame: &mut Frame<'_>) {
+        self.draw_bg(frame);
+
+        if !matches!(self.state, MenuState::Login) {
+            let area = frame.area();
+            let [_, _, _, menu, _] = Layout::vertical([
+                Constraint::Fill(1),
+                Constraint::Length(13),
+                Constraint::Max(3),
+                Constraint::Length(11),
+                Constraint::Max(1),
+            ])
+            .areas(area);
+            let [_, menu, _] = Layout::horizontal([
+                Constraint::Fill(1),
+                Constraint::Percentage(40),
+                Constraint::Fill(1),
+            ])
+            .flex(Flex::Center)
+            .areas(menu);
+            self.draw_menu(menu, frame);
+        } else {
+        }
+
+        fade_in(frame, 2.0, self.app_time.as_secs_f32(), Some(114514));
     }
 
     fn update(&mut self, event: Option<Event>) {
         {
             let time = TIME.read().unwrap();
             self.app_time += time.delta;
+            self.selected_time += time.delta;
+            self.transition_time += time.delta;
         }
+
+        if matches!(self.state, MenuState::Exiting) && self.transition_time.as_secs_f32() >= 1.1 {
+            self.state = MenuState::Menu;
+        }
+
         let Some(event) = event else {
             return;
         };
@@ -135,6 +369,34 @@ impl Activity for MenuActivity {
         }
         if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
             self.exit = true;
+        }
+        if !matches!(self.state, MenuState::Menu) {
+            return;
+        }
+        match key.code {
+            KeyCode::Up => {
+                self.selection -= 1;
+                self.selected_time = Duration::default();
+                if self.selection < 2 {
+                    self.selection = 8;
+                }
+            }
+            KeyCode::Down => {
+                self.selection += 1;
+                self.selected_time = Duration::default();
+                if self.selection > 8 {
+                    self.selection = 2;
+                }
+            }
+            KeyCode::Enter => {
+                self.transition_time = Duration::default();
+                self.state = MenuState::Entering;
+
+                if self.selection == 8 {
+                    self.exit = true;
+                }
+            }
+            _ => (),
         }
     }
 }
@@ -149,24 +411,24 @@ mod rolling_background {
         widgets::Widget,
     };
 
-    use crate::app::{ascii::NOVAK, gameplay::colors};
+    use crate::app::ascii::NOVAK;
 
     pub struct RollingBackground;
 
     static COLOR: LazyLock<Vec<Color>> = LazyLock::new(|| {
         [
-            0x3f3f46, 0x3e3e45, 0x3d3d44, 0x3d3d43, 0x3c3c43, 0x3b3b42, 0x3a3a41, 0x3a3a40,
-            0x39393f, 0x38383e, 0x37373d, 0x36363d, 0x36363c, 0x35353b, 0x34343a, 0x333339,
-            0x323238, 0x323237, 0x313137, 0x303036, 0x2f2f35, 0x2f2f34, 0x2e2e33, 0x2d2d32,
-            0x2c2c31, 0x2b2b31, 0x2b2b30, 0x2a2a2f, 0x29292e, 0x28282d, 0x28282c, 0x27272b,
-            0x26262b, 0x25252a, 0x242429, 0x242428, 0x232327, 0x222226, 0x212126, 0x202025,
-            0x202024, 0x1f1f23, 0x1e1e22, 0x1d1d21, 0x1d1d20, 0x1c1c20, 0x1b1b1f, 0x1a1a1e,
-            0x19191d, 0x19191c, 0x18181b, 0x17171a, 0x16161a, 0x161619, 0x151518, 0x141417,
-            0x131316, 0x121215, 0x121214, 0x111114, 0x101013, 0x0f0f12, 0x0e0e11, 0x0e0e10,
-            0x0d0d0f, 0x0c0c0e, 0x0b0b0e, 0x0b0b0d, 0x0a0a0c, 0x09090b,
+            0x2E1065, 0x2E1266, 0x2E1467, 0x2D1668, 0x2D1869, 0x2D196A, 0x2D1B6C, 0x2D1D6D,
+            0x2C1F6E, 0x2C216F, 0x2C2370, 0x2C2571, 0x2C2772, 0x2C2973, 0x2B2B74, 0x2B2C75,
+            0x2B2E76, 0x2B3077, 0x2B3279, 0x2A347A, 0x2A367B, 0x2A387C, 0x2A3A7D, 0x2A3C7E,
+            0x293E7F, 0x293F80, 0x294181, 0x294382, 0x294583, 0x294785, 0x284986, 0x284B87,
+            0x284D88, 0x284F89, 0x28518A, 0x27528B, 0x27548C, 0x27568D, 0x27588E, 0x275A8F,
+            0x265C90, 0x265E92, 0x266093, 0x266294, 0x266495, 0x266596, 0x256797, 0x256998,
+            0x256B99, 0x256D9A, 0x256F9B, 0x24719C, 0x24739E, 0x24759F, 0x2477A0, 0x2478A1,
+            0x237AA2, 0x237CA3, 0x237EA4, 0x2380A5, 0x2382A6, 0x2384A7, 0x2286A8, 0x2288A9,
+            0x228AAB, 0x228BAC, 0x228DAD, 0x218FAE, 0x2191AF, 0x2193B0,
         ]
         .into_iter()
-        .map(colors::hex)
+        .map(Color::from_u32)
         .collect::<Vec<Color>>()
     });
 
@@ -245,9 +507,9 @@ mod lolcat {
 
     impl Widget for Lolcat {
         fn render(self, area: Rect, buf: &mut Buffer) {
-            for y in 0..area.height {
+            for y in area.y..area.y + area.height {
                 let seed_of_lines = self.seed + y as f32;
-                for x in 0..area.width {
+                for x in area.x..area.x + area.width {
                     if buf[(x, y)].symbol() == " " {
                         continue;
                     }

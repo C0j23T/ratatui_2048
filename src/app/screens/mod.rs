@@ -97,11 +97,27 @@ impl<D: DataManager> App<D> {
 
     fn update_menu(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
         if self.state_changed {
-            self.menu_activity = Some(menu::MenuActivity::new());
+            if let Some(ref mut menu_activity) = self.menu_activity {
+                menu_activity.exiting_activity();
+            } else {
+                self.menu_activity = Some(menu::MenuActivity::new());
+            }
+            
+            self.menu_activity
+                .as_mut()
+                .unwrap()
+                .set_player(self.data_manager.get_current_player());
         }
         let menu = self.menu_activity.as_mut().unwrap();
         menu.draw(frame);
         menu.update(event);
+
+        if menu.can_enter_another_activity() {
+            if let Some(next_state) = menu.next_state() {
+                self.change_state(next_state);
+                return;
+            }
+        }
 
         if menu.exit {
             self.change_state(AppState::Quit);

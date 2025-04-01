@@ -2,6 +2,7 @@ use std::{ops::Mul, time::Duration};
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Player {
+    pub id: i32,
     pub name: String,
     pub score: i32,
     pub time: i64,

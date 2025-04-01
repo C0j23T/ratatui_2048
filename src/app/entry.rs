@@ -7,10 +7,11 @@ use crossterm::{
 };
 use ratatui::{Terminal, prelude::CrosstermBackend};
 
-use super::{data::DataManager, screens::{App, AppState}};
+use super::{data::DataManager, screens::App};
 
 pub fn start_app<D: DataManager>(data: D) -> Result<()> {
     let mut app = App::new(data);
+    // app.change_state(super::screens::AppState::Gameplay);
 
     init()?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;

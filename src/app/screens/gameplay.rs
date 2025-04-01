@@ -9,7 +9,7 @@ use rand::Rng;
 use ratatui::{
     Frame,
     layout::{Alignment, Constraint, Flex, Layout, Rect},
-    style::{Color, Style, palette::tailwind},
+    style::{Style, palette::tailwind},
     widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph},
 };
 
@@ -19,7 +19,7 @@ use crate::app::{
     math::{Interpolation, inverse_lerp, lerpf},
     structs::*,
     time::TIME,
-    utils::{get_time_millis, rect_move, rect_scale},
+    utils::{fade_in, get_time_millis, rect_move, rect_scale},
 };
 
 use super::{
@@ -246,9 +246,8 @@ impl GameplayActivity {
         for cell in &self.animations {
             match cell.animation_type {
                 CellAnimationType::Popup => {
-                    let progress = inverse_lerp(0.0..=0.8_f32, cell.duration.as_secs_f32())
-                        .unwrap_or(0.0)
-                        .min(1.0);
+                    let progress =
+                        inverse_lerp(0.0..=0.8_f32, cell.duration.as_secs_f32());
                     let rect = rect_scale(cols[cell.src.x][cell.src.y], exp_out.apply(progress));
                     frame.render_widget(Clear, rect);
                     frame.render_widget(
@@ -257,9 +256,8 @@ impl GameplayActivity {
                     );
                 }
                 CellAnimationType::Move => {
-                    let progress = inverse_lerp(0.0..=0.6_f32, cell.duration.as_secs_f32())
-                        .unwrap_or(0.0)
-                        .min(1.0);
+                    let progress =
+                        inverse_lerp(0.0..=0.6_f32, cell.duration.as_secs_f32());
                     let dest = cell.dest.as_ref().unwrap();
                     let rect = rect_move(
                         cols[cell.src.x][cell.src.y],
@@ -356,25 +354,7 @@ impl GameplayActivity {
         frame.render_widget(fx::gen_matrix(self.app_time), outer_subdiv[0]);
         frame.render_widget(fx::gen_matrix(self.app_time), outer_subdiv[3]);
 
-        {
-            let mut progress = inverse_lerp(0.0..=2.0_f32, self.app_time.as_secs_f32())
-                .unwrap_or(1.0)
-                .min(1.0);
-            progress = exp_out.apply(progress);
-            let buf = frame.buffer_mut();
-            for row in area.rows() {
-                for col in row.columns() {
-                    let cell = &mut buf[(col.x, col.y)];
-                    if let Color::Rgb(r, g, b) = cell.fg {
-                        cell.fg = Color::Rgb(
-                            (r as f32 * progress) as u8,
-                            (g as f32 * progress) as u8,
-                            (b as f32 * progress) as u8,
-                        );
-                    }
-                }
-            }
-        }
+        fade_in(frame, 0.8, self.app_time.as_secs_f32(), None);
     }
 
     pub fn queue_clear_message(&mut self) {
@@ -428,6 +408,7 @@ impl GameplayActivity {
 
     pub fn get_save(&self) -> Player {
         Player {
+            id: self.high_score.id,
             name: self.high_score.name.to_owned(),
             score: self.score,
             time: self.play_time.as_secs() as i64,

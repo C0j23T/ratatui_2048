@@ -4,11 +4,15 @@ pub fn rgb(r: u8, g: u8, b: u8) -> Color {
     Color::Rgb(r, g, b)
 }
 
-pub fn hex(hex: u32) -> Color {
-    let r = hex >> 16 & 0xff;
-    let g = hex >> 8 & 0xff;
-    let b = hex & 0xff;
-    Color::Rgb(r as u8, g as u8, b as u8)
+pub fn brightness(col: Color) -> f32 {
+    if let Color::Rgb(r, g, b) = col {
+        (0.298912 * (r as f32 / 255.0)
+            + 0.586611 * (g as f32 / 255.0)
+            + 0.114478 * (b as f32 / 255.0))
+            .clamp(0.0, 1.0)
+    } else {
+        0.0
+    }
 }
 
 pub fn color_setter(value: u16) -> Color {
@@ -24,6 +28,6 @@ pub fn color_setter(value: u16) -> Color {
         256 => rgb(237, 204, 97),
         512 => rgb(237, 200, 80),
         1024 => rgb(237, 197, 63),
-        _ => rgb(237, 194, 46)
+        _ => rgb(237, 194, 46),
     }
 }

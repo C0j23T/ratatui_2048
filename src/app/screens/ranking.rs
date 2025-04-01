@@ -13,7 +13,7 @@ use ratatui::{
     },
 };
 
-use crate::app::{math::inverse_lerp, structs::Player, time::TIME};
+use crate::app::{structs::Player, time::TIME, utils::fade_in};
 
 use super::Activity;
 
@@ -279,39 +279,12 @@ impl RankingActivity {
             &mut self.scroll_state,
         );
     }
-
-    pub fn fade_in(&mut self, frame: &mut Frame<'_>) {
-        let area = frame.area();
-        let progress = inverse_lerp(0.0..=0.5_f32, self.app_time.as_secs_f32())
-            .unwrap_or(1.0)
-            .min(1.0);
-        let buf = frame.buffer_mut();
-        for row in area.rows() {
-            for col in row.columns() {
-                let cell = &mut buf[(col.x, col.y)];
-                if let Color::Rgb(r, g, b) = cell.fg {
-                    cell.fg = Color::Rgb(
-                        (r as f32 * progress) as u8,
-                        (g as f32 * progress) as u8,
-                        (b as f32 * progress) as u8,
-                    );
-                }
-                if let Color::Rgb(r, g, b) = cell.bg {
-                    cell.bg = Color::Rgb(
-                        (r as f32 * progress) as u8,
-                        (g as f32 * progress) as u8,
-                        (b as f32 * progress) as u8,
-                    );
-                }
-            }
-        }
-    }
 }
 
 impl Activity for RankingActivity {
     fn draw(&mut self, frame: &mut Frame<'_>) {
         self.draw_ranking(frame);
-        self.fade_in(frame);
+        fade_in(frame, 0.5, self.app_time.as_secs_f32(), None);
     }
 
     fn update(&mut self, event: Option<Event>) {

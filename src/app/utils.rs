@@ -1,8 +1,8 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ratatui::layout::Rect;
+use ratatui::{Frame, layout::Rect, style::Color};
 
-use super::math::lerpf;
+use super::math::{inverse_lerp, lerpf};
 
 pub fn get_time_millis() -> i64 {
     SystemTime::now()
@@ -51,5 +51,48 @@ pub fn rect_move(src: Rect, dest: Rect, progress: f32) -> Rect {
         y: lerpf(src.y as f32..=dest.y as f32, progress).round() as u16,
         width: lerpf(src.width as f32..=dest.width as f32, progress).round() as u16,
         height: lerpf(src.height as f32..=dest.height as f32, progress).round() as u16,
+    }
+}
+
+pub fn hash(mut n: u32) -> f32 {
+    n = (n << 13) ^ n;
+    n = n
+        .wrapping_mul(
+            n.wrapping_mul(n)
+                .wrapping_mul(15731)
+                .wrapping_add(0x76312589),
+        )
+        .wrapping_add(0x76312589);
+    (n & 0x7fffffff) as f32 / 0x7fffffff as f32
+}
+
+pub fn fade_in(frame: &mut Frame<'_>, duration: f32, time: f32, seed: Option<u32>) {
+    let area = frame.area();
+    let progress = inverse_lerp(0.0..=duration, time);
+    let buf = frame.buffer_mut();
+    for row in area.rows() {
+        for col in row.columns() {
+            let cell = &mut buf[(col.x, col.y)];
+            if let Color::Rgb(r, g, b) = cell.fg {
+                cell.fg = Color::Rgb(
+                    (r as f32 * progress) as u8,
+                    (g as f32 * progress) as u8,
+                    (b as f32 * progress) as u8,
+                );
+            }
+            if let Color::Rgb(r, g, b) = cell.bg {
+                cell.bg = Color::Rgb(
+                    (r as f32 * progress) as u8,
+                    (g as f32 * progress) as u8,
+                    (b as f32 * progress) as u8,
+                );
+            }
+            if let Some(seed) = seed {
+                if hash(col.x as u32 * seed + col.y as u32) + progress <= 0.9 {
+                    cell.set_symbol(" ");
+                    cell.set_bg(Color::Reset);
+                }
+            }
+        }
     }
 }
