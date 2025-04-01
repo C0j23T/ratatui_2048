@@ -33,7 +33,7 @@ pub struct Dialog {
     title: String,
     content: String,
     buttons: Vec<String>,
-    callback: Arc<AtomicI8>,
+    callback: Option<Arc<AtomicI8>>,
     content_alignment: Alignment,
     warp: bool,
 
@@ -50,7 +50,7 @@ impl Dialog {
         content_alignment: Alignment,
         warp: bool,
         mut buttons: Vec<String>,
-        callback: Arc<AtomicI8>,
+        callback: Option<Arc<AtomicI8>>,
     ) -> Self {
         if buttons.is_empty() {
             buttons = vec![String::from("确定")];
@@ -174,9 +174,9 @@ impl DialogManager {
                 return;
             };
             if dialog.return_at_next_frame {
-                dialog
-                    .callback
-                    .store(dialog.active, std::sync::atomic::Ordering::Relaxed);
+                if let Some(callback) = &dialog.callback {
+                    callback.store(dialog.active, std::sync::atomic::Ordering::Relaxed);
+                }
                 self.active = None;
                 return;
             }

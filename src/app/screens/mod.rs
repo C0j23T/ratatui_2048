@@ -4,8 +4,6 @@ use crossterm::event::{self, Event};
 use dialog::DIALOG_MANAGER;
 use ratatui::{Frame, Terminal, prelude::Backend};
 
-use super::data::DataManager;
-
 mod dialog;
 mod gameplay;
 mod menu;
@@ -31,23 +29,20 @@ pub enum AppState {
 }
 
 #[derive(Default)]
-pub struct App<D: DataManager> {
+pub struct App<'a> {
     state: AppState,
-    data_manager: D,
     pub state_changed: bool,
 
     gameplay_activity: Option<gameplay::GameplayActivity>,
     ranking_activity: Option<ranking::RankingActivity>,
-    menu_activity: Option<menu::MenuActivity>,
+    menu_activity: Option<menu::MenuActivity<'a>>,
     gameplay_move_save: bool,
 }
 
-impl<D: DataManager> App<D> {
-    pub fn new(data_manager: D) -> Self {
+impl App<'_> {
+    pub fn new() -> Self {
         Self {
-            state: AppState::MainMenu,
             state_changed: true,
-            data_manager,
             ..Default::default()
         }
     }
@@ -58,7 +53,7 @@ impl<D: DataManager> App<D> {
     }
 }
 
-impl<D: DataManager> App<D> {
+impl App<'_> {
     pub fn update<B: Backend>(&mut self, terminal: &mut Terminal<B>) -> Result<bool> {
         crate::app::time::update_time();
 
@@ -71,18 +66,29 @@ impl<D: DataManager> App<D> {
         let last_state_changed = self.state_changed;
 
         terminal.draw(|frame| {
-            let event_clone = event.clone();
+            let has_dialog = {
+                let mut dialog_manager = DIALOG_MANAGER.write().unwrap();
+                if let Some(event) = event.clone() {
+                    dialog_manager.update_input(event);
+                }
+                dialog_manager.has_dialog()
+            };
+            let event = if !has_dialog { event } else { None };
+
             match self.state {
-                AppState::Gameplay => self.update_gameplay(frame, event_clone),
-                AppState::MainMenu => self.update_menu(frame, event_clone),
+                AppState::Gameplay => self.update_gameplay(frame, event),
+                AppState::MainMenu => self.update_menu(frame, event),
+                AppState::SwitchPlayer => {
+                    if !last_state_changed {
+                        self.menu_activity = None;
+                        self.change_state(AppState::MainMenu);
+                    }
+                }
                 _ => todo!(),
             };
 
             let mut dialog_manager = DIALOG_MANAGER.write().unwrap();
             dialog_manager.draw(frame);
-            if let Some(event) = event {
-                dialog_manager.update_input(event);
-            }
         })?;
 
         if self.state_changed == last_state_changed {
@@ -102,11 +108,6 @@ impl<D: DataManager> App<D> {
             } else {
                 self.menu_activity = Some(menu::MenuActivity::new());
             }
-            
-            self.menu_activity
-                .as_mut()
-                .unwrap()
-                .set_player(self.data_manager.get_current_player());
         }
         let menu = self.menu_activity.as_mut().unwrap();
         menu.draw(frame);
@@ -126,12 +127,8 @@ impl<D: DataManager> App<D> {
 
     fn update_gameplay(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
         if self.state_changed {
-            self.gameplay_activity = Some(gameplay::GameplayActivity::new(
-                self.data_manager.get_current_player(),
-            ));
-            self.ranking_activity = Some(ranking::RankingActivity::new(
-                self.data_manager.get_players_best_except_self(),
-            ));
+            self.gameplay_activity = Some(gameplay::GameplayActivity::new());
+            self.ranking_activity = Some(ranking::RankingActivity::new());
         }
 
         let gameplay = self.gameplay_activity.as_mut().unwrap();
@@ -140,10 +137,6 @@ impl<D: DataManager> App<D> {
             gameplay.draw(frame);
             gameplay.update(event);
             if gameplay.exit {
-                if gameplay.game_over {
-                    self.data_manager.save_current_player(gameplay.get_save());
-                }
-
                 self.change_state(AppState::MainMenu);
             }
         } else {

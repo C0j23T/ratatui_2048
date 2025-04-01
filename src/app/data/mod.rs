@@ -1,13 +1,23 @@
 use crate::app::structs::Player;
 
-pub trait DataManager: Default {
+pub enum TryRecvError {
+    Empty,
+    Timeout,
+    Disconnect,
+}
+
+pub trait DataManager: Send {
     fn is_first_launch(&mut self) -> bool;
 
-    fn get_current_player(&mut self) -> Player;
+    fn verify_account(&mut self, username: String, password: String) -> Result<Option<Player>, TryRecvError>;
 
-    fn get_players_best_except_self(&mut self) -> Vec<Player>;
+    fn register_account(&mut self, username: String, password: String) -> Result<Option<Player>, TryRecvError>;
 
-    fn save_current_player(&mut self, player: Player) -> bool;
+    fn get_current_player(&mut self) -> Result<Player, TryRecvError>;
+
+    fn get_players_best_except_self(&mut self) -> Result<Vec<Player>, TryRecvError>;
+
+    fn save_current_player(&mut self, player: Player) -> Result<bool, TryRecvError>;
 }
 
 #[derive(Default)]
@@ -18,12 +28,12 @@ impl DataManager for DummyDataManager {
         false
     }
 
-    fn get_current_player(&mut self) -> Player {
-        Player::default()
+    fn get_current_player(&mut self) -> Result<Player, TryRecvError> {
+        Ok(Player::default())
     }
 
-    fn get_players_best_except_self(&mut self) -> Vec<Player> {
-        vec![
+    fn get_players_best_except_self(&mut self) -> Result<Vec<Player>, TryRecvError> {
+        Ok(vec![
             Player {
                 id: 123,
                 name: String::from("DARE"),
@@ -32,10 +42,18 @@ impl DataManager for DummyDataManager {
                 timestamp: 1145141919810,
             };
             100
-        ]
+        ])
     }
 
-    fn save_current_player(&mut self, _: Player) -> bool {
-        true
+    fn save_current_player(&mut self, _: Player) -> Result<bool, TryRecvError> {
+        Ok(true)
+    }
+
+    fn verify_account(&mut self, _: String, _: String) -> Result<Option<Player>, TryRecvError> {
+        Ok(Some(Player::default()))
+    }
+
+    fn register_account(&mut self, _: String, _: String) -> Result<Option<Player>, TryRecvError> {
+        Ok(Some(Player::default()))
     }
 }

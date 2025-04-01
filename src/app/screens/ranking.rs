@@ -13,7 +13,7 @@ use ratatui::{
     },
 };
 
-use crate::app::{structs::Player, time::TIME, utils::fade_in};
+use crate::{app::{structs::Player, time::TIME, utils::fade_in}, data_manager};
 
 use super::Activity;
 
@@ -24,6 +24,7 @@ pub struct RankingActivity {
     itoa_buffer: itoa::Buffer,
     save: Player,
     players: Vec<Player>,
+    players_requested: bool,
     app_time: Duration,
     by_score: bool,
 
@@ -36,11 +37,8 @@ pub struct RankingActivity {
 }
 
 impl RankingActivity {
-    pub fn new(players: Vec<Player>) -> Self {
-        let mut this = Self {
-            players,
-            ..Default::default()
-        };
+    pub fn new() -> Self {
+        let mut this = Self::default();
         this.state.select(Some(0));
         this
     }
@@ -209,13 +207,14 @@ impl RankingActivity {
                     .bg(tailwind::INDIGO.c700),
             )
             .height(1);
-        let len = self.show_items.len();
+        // let len = self.show_items.len();
         let rows = self.show_items.iter().enumerate().map(|(i, data)| {
-            let bg = Color::Rgb(
+            /* let bg = Color::Rgb(
                 (99.0 * (1.0 - i as f32 / len as f32)) as u8,
                 (102.0 * (1.0 - i as f32 / len as f32)) as u8,
                 (241.0 * (1.0 - i as f32 / len as f32)) as u8,
-            );
+            ); */
+            let bg = Color::Reset;
 
             let fg = if self.by_score {
                 match i {
@@ -291,6 +290,13 @@ impl Activity for RankingActivity {
         {
             let time = TIME.read().unwrap();
             self.app_time += time.delta;
+        }
+
+        if self.players_requested {
+            if let Some(players) = data_manager!(get_players_best_except_self) {
+                self.players = players;
+                self.players_requested = true;
+            }
         }
 
         if let Some(event) = event {

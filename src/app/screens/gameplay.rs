@@ -13,26 +13,28 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph},
 };
 
-use crate::app::{
+use crate::{app::{
     ascii,
     gameplay::{movement::*, *},
-    math::{Interpolation, inverse_lerp, lerpf},
+    math::{inverse_lerp, lerpf, Interpolation},
     structs::*,
     time::TIME,
     utils::{fade_in, get_time_millis, rect_move, rect_scale},
-};
+}, data_manager};
 
 use super::{
     Activity,
     dialog::{DIALOG_MANAGER, Dialog},
 };
 
+#[derive(Default)]
 pub struct GameplayActivity {
     cells: Grid,
     visual_cells: Grid,
     score: i32,
     show_score: i32,
     high_score: Player,
+    player_requested: bool,
     play_time: Duration,
     app_time: Duration,
     play_started: bool,
@@ -50,26 +52,13 @@ pub struct GameplayActivity {
 }
 
 impl GameplayActivity {
-    pub fn new(save: Player) -> Self {
+    pub fn new() -> Self {
         // 到这里应该早就被初始化了
         let mut this = Self {
             cells: vec![vec![Cell::default(); 4]; 4],
             visual_cells: vec![vec![Cell::default(); 4]; 4],
-            itoa_buffer: itoa::Buffer::new(),
-            high_score: save,
-            score: 0,
-            show_score: 0,
-            animations: Vec::new(),
-            exit: false,
-            play_started: false,
-            game_over: false,
-            dead_dialog: false,
-            show_ranking: false,
-            dead_time: 0,
-            play_time: Duration::default(),
-            app_time: Duration::default(),
-            dead_dialog_time: Duration::default(),
             dead_dialog_chose: Arc::new(AtomicI8::new(-1)),
+            ..Default::default()
         };
 
         this.animations.push(start_up(&mut this.cells));
@@ -77,13 +66,6 @@ impl GameplayActivity {
     }
 
     fn gameplay_update_input(&mut self, event: Event) {
-        {
-            let dialog_manager = DIALOG_MANAGER.read().unwrap();
-            if dialog_manager.has_dialog() {
-                return;
-            }
-        }
-
         let event::Event::Key(key) = event else {
             return;
         };
@@ -384,7 +366,7 @@ impl GameplayActivity {
             Alignment::Center,
             false,
             vec![String::from("重试"), String::from("查看排行"), String::from("退出")],
-            dialog_chose.clone(),
+            Some(dialog_chose.clone()),
         ));
     }
 
@@ -393,7 +375,7 @@ impl GameplayActivity {
             .dead_dialog_chose
             .load(std::sync::atomic::Ordering::Relaxed);
         if chose == 0 {
-            *self = Self::new(self.high_score.clone());
+            *self = Self::new();
             let mut time = TIME.write().unwrap();
             time.startup = Instant::now();
             time.last_update = None;
@@ -431,8 +413,19 @@ impl Activity for GameplayActivity {
             }
         }
 
+        if !self.player_requested {
+            if let Some(player) = data_manager!(get_current_player) {
+                self.player_requested = true;
+                self.high_score = player;
+            }
+        }
+
         if let Some(event) = event {
             self.gameplay_update_input(event);
+        }
+
+        if self.exit && self.game_over {
+            data_manager!(save_current_player, self.get_save());
         }
 
         if self.game_over {
