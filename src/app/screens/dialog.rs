@@ -95,11 +95,11 @@ impl DialogManager {
             .split(frame.area());
 
         let mut paragraph = Paragraph::new(dialog.content.as_str())
-            .bg(tailwind::SKY.c600)
-            .fg(tailwind::SKY.c50)
+            .bg(tailwind::INDIGO.c600)
+            .fg(tailwind::INDIGO.c50)
             .block(
                 Block::bordered()
-                    .border_style(Style::new().bg(tailwind::SKY.c600).fg(tailwind::SKY.c50))
+                    .border_style(Style::new().bg(tailwind::INDIGO.c600).fg(tailwind::INDIGO.c50))
                     .border_type(BorderType::Rounded)
                     .title(dialog.title.as_str())
                     .title_alignment(Alignment::Center),
@@ -280,10 +280,10 @@ pub mod button {
     }
 
     pub const BLUE: Theme = Theme {
-        text: tailwind::BLUE.c50,
-        background: tailwind::BLUE.c500,
-        highlight: tailwind::BLUE.c400,
-        shadow: tailwind::BLUE.c600,
+        text: tailwind::INDIGO.c50,
+        background: tailwind::INDIGO.c500,
+        highlight: tailwind::INDIGO.c400,
+        shadow: tailwind::INDIGO.c600,
     };
 
     impl<'a> Button<'a> {

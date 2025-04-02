@@ -73,7 +73,7 @@ impl RankingActivity {
     #[allow(dead_code)]
     pub fn by_timestamp(&mut self) {
         self.show_items
-            .sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+            .sort_by(|a, b| b.best_timestamp.cmp(&a.best_timestamp));
         self.by_score = false;
         self.set_row(
             self.show_items
@@ -134,13 +134,13 @@ impl RankingActivity {
         let score_len = self
             .show_items
             .iter()
-            .map(|x| unicode_width::UnicodeWidthStr::width_cjk(self.itoa_buffer.format(x.score)))
+            .map(|x| unicode_width::UnicodeWidthStr::width_cjk(self.itoa_buffer.format(x.best_score)))
             .max()
             .unwrap_or(0) as u16;
         let time_len = self
             .show_items
             .iter()
-            .map(|x| unicode_width::UnicodeWidthStr::width_cjk(self.itoa_buffer.format(x.time)))
+            .map(|x| unicode_width::UnicodeWidthStr::width_cjk(self.itoa_buffer.format(x.best_time)))
             .max()
             .unwrap_or(0) as u16;
         self.longest_item_lens = (name_len, score_len, time_len);
@@ -206,13 +206,7 @@ impl RankingActivity {
                     .bg(tailwind::INDIGO.c700),
             )
             .height(1);
-        // let len = self.show_items.len();
         let rows = self.show_items.iter().enumerate().map(|(i, data)| {
-            /* let bg = Color::Rgb(
-                (99.0 * (1.0 - i as f32 / len as f32)) as u8,
-                (102.0 * (1.0 - i as f32 / len as f32)) as u8,
-                (241.0 * (1.0 - i as f32 / len as f32)) as u8,
-            ); */
             let bg = Color::Reset;
 
             let fg = if self.by_score {
@@ -226,7 +220,7 @@ impl RankingActivity {
                 tailwind::INDIGO.c50
             };
 
-            let time = (chrono::Utc.timestamp_millis_opt(data.timestamp).unwrap()
+            let time = (chrono::Utc.timestamp_millis_opt(data.best_timestamp).unwrap()
                 + chrono::Duration::hours(8))
             .format("%Y-%m-%d %H:%M:%S")
             .to_string();
@@ -234,8 +228,8 @@ impl RankingActivity {
             [
                 Cell::from(format!("#{}", i + 1)),
                 Cell::from(data.name.as_str()),
-                Cell::from(self.itoa_buffer.format(data.score).to_string()),
-                Cell::from(self.itoa_buffer.format(data.time).to_string()),
+                Cell::from(self.itoa_buffer.format(data.best_score).to_string()),
+                Cell::from(self.itoa_buffer.format(data.best_time).to_string()),
                 Cell::from(time),
             ]
             .into_iter()

@@ -1393,6 +1393,7 @@ dependencies = [
  "itoa",
  "jni",
  "rand",
+ "rand_chacha",
  "ratatui",
  "ratatui-image",
  "tui-rain",

@@ -4,6 +4,14 @@ use std::{ops::Mul, time::Duration};
 pub struct Player {
     pub id: i32,
     pub name: String,
+    pub best_score: i32,
+    pub best_time: i64,
+    pub best_timestamp: i64,
+    pub records: Vec<PlayerRecord>,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct PlayerRecord {
     pub score: i32,
     pub time: i64,
     pub timestamp: i64,
@@ -17,10 +25,10 @@ impl PartialOrd for Player {
 
 impl Ord for Player {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        if self.score != other.score {
-            self.score.cmp(&other.score)
+        if self.best_score != other.best_score {
+            self.best_score.cmp(&other.best_score)
         } else {
-            self.time.cmp(&other.time)
+            self.best_time.cmp(&other.best_time)
         }
     }
 }

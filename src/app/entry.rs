@@ -1,5 +1,9 @@
-use std::{io::{stdout, Result}, sync::{LazyLock, Mutex}};
+use std::sync::RwLock;
 use std::time::{Duration, Instant};
+use std::{
+    io::{Result, stdout},
+    sync::LazyLock,
+};
 
 use crossterm::{
     ExecutableCommand,
@@ -10,64 +14,66 @@ use ratatui::{Terminal, prelude::CrosstermBackend};
 
 use super::{data::DataManager, screens::App};
 
-pub(super) static DATA_MANAGER: LazyLock<Mutex<Option<Box<dyn DataManager>>>> = LazyLock::new(|| Mutex::new(None));
+pub(super) static DATA_MANAGER: LazyLock<RwLock<Option<Box<dyn DataManager>>>> =
+    LazyLock::new(|| RwLock::new(None));
 
 #[macro_use]
 mod macros {
     #[macro_export]
     macro_rules! data_manager {
-        ($method:ident) => {
-            {
+        ($method:ident) => {{
                 data_manager!($method,)
-            }
-        };
-        ($method:ident, $($params:tt)*) => {
-            {
-                let mut binding = $crate::app::entry::DATA_MANAGER.lock().unwrap();
-                match binding.as_mut().unwrap().$method($($params)*) {
-                    Ok(x) => Some(x),
-                    Err(e) => match e {
-                        $crate::app::data::TryRecvError::Empty => None,
-                        $crate::app::data::TryRecvError::Timeout => {
-                            let mut dialog_manager = $crate::app::screens::dialog::DIALOG_MANAGER.write().unwrap();
-                            dialog_manager.push($crate::app::screens::dialog::Dialog::new(
-                                " 遇到问题 ",
-                                "在处理数据时遇到超时问题，部分操作无法继续",
-                                ratatui::prelude::Alignment::Left,
-                                false,
-                                vec![String::from("确定")],
-                                None,
-                            ));
-                            None
-                        },
-                        $crate::app::data::TryRecvError::Disconnect => {
-                            let mut dialog_manager = $crate::app::screens::dialog::DIALOG_MANAGER.write().unwrap();
-                            dialog_manager.push($crate::app::screens::dialog::Dialog::new(
-                                " 遇到问题 ",
-                                "严重错误：内部连接已断开",
-                                ratatui::prelude::Alignment::Left,
-                                false,
-                                vec![String::from("确定")],
-                                None,
-                            ));
-                            None
-                        },
-                    }
+            }};
+        (immediate, $method:ident) => {{
+            let binding = $crate::app::entry::DATA_MANAGER.read().unwrap();
+            binding.as_ref().unwrap().$method()
+        }};
+        ($method:ident, $($params:tt)*) => {{
+            let mut binding = $crate::app::entry::DATA_MANAGER.write().unwrap();
+            match binding.as_mut().unwrap().$method($($params)*) {
+                Ok(x) => Some(x),
+                Err(e) => match e {
+                    $crate::app::data::TryRecvError::Empty => None,
+                    $crate::app::data::TryRecvError::Timeout => {
+                        let mut dialog_manager = $crate::app::screens::dialog::DIALOG_MANAGER.write().unwrap();
+                        dialog_manager.push($crate::app::screens::dialog::Dialog::new(
+                            " 遇到问题 ",
+                            "在处理数据时遇到超时问题，部分操作无法继续",
+                            ratatui::prelude::Alignment::Left,
+                            false,
+                            vec![String::from("确定")],
+                            None,
+                        ));
+                        None
+                    },
+                    $crate::app::data::TryRecvError::Disconnect => {
+                        let mut dialog_manager = $crate::app::screens::dialog::DIALOG_MANAGER.write().unwrap();
+                        dialog_manager.push($crate::app::screens::dialog::Dialog::new(
+                            " 遇到问题 ",
+                            "严重错误：内部连接已断开",
+                            ratatui::prelude::Alignment::Left,
+                            false,
+                            vec![String::from("确定")],
+                            None,
+                        ));
+                        None
+                    },
                 }
             }
-        };
+        }};
     }
 }
 
-const FPS: i32 = 30;
+pub const FPS: i32 = 30;
 
-pub fn run_app(data: Box<dyn DataManager>) -> Result<()> {
+pub fn run_app(mut data: Box<dyn DataManager>) -> Result<()> {
+    let is_first_launch = data.is_first_launch();
     {
-        let mut data_manager = DATA_MANAGER.lock().unwrap();
+        let mut data_manager = DATA_MANAGER.write().unwrap();
         *data_manager = Some(data);
     }
 
-    let mut app = App::new();
+    let mut app = App::new(is_first_launch);
     // app.change_state(super::screens::AppState::Gameplay);
 
     init()?;

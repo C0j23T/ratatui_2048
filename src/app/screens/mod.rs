@@ -9,7 +9,9 @@ use crate::data_manager;
 mod dialog;
 mod gameplay;
 mod menu;
-mod ranking;
+mod simple_ranking;
+mod find_player;
+mod oobe;
 
 pub trait Activity {
     fn draw(&mut self, frame: &mut Frame<'_>);
@@ -19,6 +21,7 @@ pub trait Activity {
 
 #[derive(Default)]
 pub enum AppState {
+    FirstLaunch,
     #[default]
     MainMenu,
     Gameplay,
@@ -34,17 +37,25 @@ pub enum AppState {
 pub struct App<'a> {
     state: AppState,
     pub state_changed: bool,
+    first_launch: bool,
 
     gameplay_activity: Option<gameplay::GameplayActivity>,
-    ranking_activity: Option<ranking::RankingActivity>,
+    ranking_activity: Option<simple_ranking::RankingActivity>,
     menu_activity: Option<menu::MenuActivity<'a>>,
+    oobe_activity: Option<oobe::OobeActivity<'a>>,
     gameplay_move_save: bool,
 }
 
 impl App<'_> {
-    pub fn new() -> Self {
+    pub fn new(first_launch: bool) -> Self {
         Self {
+            first_launch,
             state_changed: true,
+            state: if first_launch {
+                AppState::FirstLaunch
+            } else {
+                AppState::default()
+            },
             ..Default::default()
         }
     }
@@ -75,7 +86,11 @@ impl App<'_> {
                 }
                 dialog_manager.has_dialog()
             };
-            let event = if !has_dialog { event } else { None };
+            let event = if !has_dialog  {
+                event
+            } else {
+                None
+            };
 
             match self.state {
                 AppState::Gameplay => self.update_gameplay(frame, event),
@@ -85,8 +100,9 @@ impl App<'_> {
                         self.menu_activity = None;
                         self.change_state(AppState::MainMenu);
                     }
-                },
+                }
                 AppState::Ranking => self.update_ranking(frame, event),
+                AppState::FirstLaunch => self.update_oobe(frame, event),
                 _ => todo!(),
             };
 
@@ -104,9 +120,36 @@ impl App<'_> {
         }
     }
 
+    fn update_oobe(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
+        if self.state_changed {
+            self.oobe_activity = Some(oobe::OobeActivity::new());
+            self.menu_activity = Some(menu::MenuActivity::new(false));
+        }
+
+        let oobe = self.oobe_activity.as_mut().unwrap();
+        let render_menu = oobe.render_menu;
+        if render_menu {
+            let menu = self.menu_activity.as_mut().unwrap();
+            menu.draw(frame);
+            menu.update(None);
+        }
+        let buf = frame.buffer_mut().clone();
+        frame.buffer_mut().reset();
+        oobe.draw_oobe(frame,  buf);
+        oobe.update(event);
+        
+
+        if oobe.should_exit {
+            self.change_state(AppState::Exit);
+        } else if oobe.should_skip {
+            self.change_state(AppState::MainMenu);
+            self.oobe_activity = None;
+        }
+    }
+
     fn update_ranking(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
         if self.state_changed {
-            self.ranking_activity = Some(ranking::RankingActivity::new());
+            self.ranking_activity = Some(simple_ranking::RankingActivity::new());
         }
 
         let ranking = self.ranking_activity.as_mut().unwrap();
@@ -123,6 +166,7 @@ impl App<'_> {
 
         if ranking.should_exit {
             self.gameplay_move_save = false;
+            self.ranking_activity = None;
             self.change_state(AppState::MainMenu);
         }
     }
@@ -130,10 +174,13 @@ impl App<'_> {
     fn update_menu(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
         if self.state_changed {
             if let Some(ref mut menu_activity) = self.menu_activity {
-                menu_activity.exiting_activity();
+                if !self.first_launch {
+                    menu_activity.exiting_activity();
+                }
             } else {
-                self.menu_activity = Some(menu::MenuActivity::new());
+                self.menu_activity = Some(menu::MenuActivity::new(!self.first_launch));
             }
+            self.first_launch = false;
         }
         let menu = self.menu_activity.as_mut().unwrap();
         menu.draw(frame);
@@ -154,7 +201,7 @@ impl App<'_> {
     fn update_gameplay(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
         if self.state_changed {
             self.gameplay_activity = Some(gameplay::GameplayActivity::new());
-            self.ranking_activity = Some(ranking::RankingActivity::new());
+            self.ranking_activity = Some(simple_ranking::RankingActivity::new());
         }
 
         let gameplay = self.gameplay_activity.as_mut().unwrap();
@@ -164,6 +211,8 @@ impl App<'_> {
             gameplay.update(event);
             if gameplay.should_exit {
                 self.change_state(AppState::MainMenu);
+                self.gameplay_activity = None;
+                self.ranking_activity = None;
             }
         } else {
             let ranking = self.ranking_activity.as_mut().unwrap();

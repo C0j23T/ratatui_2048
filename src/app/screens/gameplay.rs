@@ -317,7 +317,7 @@ impl GameplayActivity {
             "},
             self.high_score.name,
             self.show_score,
-            self.high_score.score,
+            self.high_score.best_score,
             self.play_time.as_secs()
         ))
         .style(Style::default().fg(tailwind::INDIGO.c300))
@@ -341,7 +341,7 @@ impl GameplayActivity {
 
     pub fn queue_clear_message(&mut self) {
         let dialog_chose = self.dead_dialog_chose.clone();
-        let ascii_art = if self.score < self.high_score.score {
+        let ascii_art = if self.score < self.high_score.best_score {
             let mut rng = rand::thread_rng();
             let num = rng.gen_range(1..=10);
             if num <= 2 {
@@ -359,8 +359,8 @@ impl GameplayActivity {
                 "{}\n已经没有块可以移动了！\n\n最终成绩: {} 分\n最高成绩: {} 分 ({:+})\n最终用时: {}秒",
                 ascii_art,
                 self.score,
-                self.high_score.score,
-                self.score - self.high_score.score,
+                self.high_score.best_score,
+                self.score - self.high_score.best_score,
                 self.play_time.as_secs(),
             ),
             Alignment::Center,
@@ -392,9 +392,10 @@ impl GameplayActivity {
         Player {
             id: self.high_score.id,
             name: self.high_score.name.to_owned(),
-            score: self.score,
-            time: self.play_time.as_secs() as i64,
-            timestamp: self.dead_time,
+            best_score: self.score,
+            best_time: self.play_time.as_secs() as i64,
+            best_timestamp: self.dead_time,
+            records: self.high_score.records.clone(),
         }
     }
 }

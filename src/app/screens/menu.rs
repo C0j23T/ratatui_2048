@@ -37,6 +37,7 @@ pub struct MenuActivity<'a> {
     focus: usize,
     selected_time: Duration,
     transition_time: Duration,
+    fade_in: bool,
 
     app_time: Duration,
 
@@ -102,10 +103,11 @@ impl Default for MenuState<'_> {
 }
 
 impl MenuActivity<'_> {
-    pub fn new() -> Self {
+    pub fn new(fade_in: bool) -> Self {
         Self {
             should_exit: false,
             focus: 2,
+            fade_in,
             ..Default::default()
         }
     }
@@ -390,8 +392,6 @@ impl MenuActivity<'_> {
         let area = frame.area();
         let divs = Layout::vertical([
             Constraint::Fill(1),
-            Constraint::Length(13),
-            Constraint::Max(3),
             Constraint::Length(11),
             Constraint::Max(1),
         ])
@@ -402,7 +402,7 @@ impl MenuActivity<'_> {
             Constraint::Fill(1),
         ])
         .flex(Flex::Center)
-        .areas(divs[3]);
+        .areas(divs[1]);
 
         let MenuState::Login {
             ref username,
@@ -423,7 +423,7 @@ impl MenuActivity<'_> {
                 Constraint::Fill(1),
             ])
             .flex(Flex::Center)
-            .areas(divs[3]);
+            .areas(divs[1]);
             self.draw_frame(panel, Some(menu), frame);
             return;
         }
@@ -520,8 +520,6 @@ impl Activity for MenuActivity<'_> {
             let area = frame.area();
             let divs = Layout::vertical([
                 Constraint::Fill(1),
-                Constraint::Length(13),
-                Constraint::Max(3),
                 Constraint::Length(11),
                 Constraint::Max(1),
             ])
@@ -532,13 +530,15 @@ impl Activity for MenuActivity<'_> {
                 Constraint::Fill(1),
             ])
             .flex(Flex::Center)
-            .areas(divs[3]);
+            .areas(divs[1]);
             self.draw_menu(menu, frame);
         } else {
             self.draw_login(frame);
         }
 
-        fade_in(frame, 2.0, self.app_time.as_secs_f32(), Some(114514));
+        if self.fade_in {
+            fade_in(frame, 2.0, self.app_time.as_secs_f32(), Some(114514));
+        }
     }
 
     fn update(&mut self, event: Option<Event>) {
@@ -690,8 +690,6 @@ impl Activity for MenuActivity<'_> {
                         *focus = 0;
                     } else if f == 1 {
                         *focus = 3;
-                    } else if f == 2 {
-                        *focus = 4;
                     } else {
                         *focus += 1;
                     }
@@ -754,6 +752,9 @@ impl Activity for MenuActivity<'_> {
                         *login_pressed = true;
                     }
                 }
+                KeyCode::Esc => {
+                    self.should_exit = true;
+                }
                 _ => match focus {
                     0 => {
                         username.input(key);
@@ -765,7 +766,7 @@ impl Activity for MenuActivity<'_> {
                         confirm.input(key);
                     }
                     _ => {
-                        if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
+                        if key.code == KeyCode::Char('q') {
                             self.should_exit = true;
                         }
                     }
@@ -827,7 +828,6 @@ mod rolling_background {
     #[inline]
     fn get_chars(x: usize, y: usize, len: usize) -> &'static [char] {
         let row_start = y * WIDTH;
-        
 
         let start = x + row_start;
         let end = x + row_start + len.min(WIDTH);
