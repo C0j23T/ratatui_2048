@@ -1,4 +1,5 @@
 use std::{io::{stdout, Result}, sync::{LazyLock, Mutex}};
+use std::time::{Duration, Instant};
 
 use crossterm::{
     ExecutableCommand,
@@ -58,6 +59,8 @@ mod macros {
     }
 }
 
+const FPS: i32 = 30;
+
 pub fn run_app(data: Box<dyn DataManager>) -> Result<()> {
     {
         let mut data_manager = DATA_MANAGER.lock().unwrap();
@@ -71,10 +74,18 @@ pub fn run_app(data: Box<dyn DataManager>) -> Result<()> {
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;
     terminal.clear()?;
 
+    let frame_duration = Duration::from_millis(1000 / FPS as u64);
     loop {
+        let frame_start = Instant::now();
+
         let exit = app.update(&mut terminal)?;
         if exit {
             break;
+        }
+
+        let elapsed = frame_start.elapsed();
+        if elapsed < frame_duration {
+            std::thread::sleep(frame_duration - elapsed);
         }
     }
 
