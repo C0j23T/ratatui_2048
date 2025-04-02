@@ -101,7 +101,8 @@ impl DialogManager {
                 Block::bordered()
                     .border_style(Style::new().bg(tailwind::SKY.c600).fg(tailwind::SKY.c50))
                     .border_type(BorderType::Rounded)
-                    .title(dialog.title.as_str()),
+                    .title(dialog.title.as_str())
+                    .title_alignment(Alignment::Center),
             )
             .alignment(dialog.content_alignment);
         if dialog.warp {

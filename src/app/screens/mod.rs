@@ -4,6 +4,8 @@ use crossterm::event::{self, Event};
 use dialog::DIALOG_MANAGER;
 use ratatui::{Frame, Terminal, prelude::Backend};
 
+use crate::data_manager;
+
 mod dialog;
 mod gameplay;
 mod menu;
@@ -24,8 +26,8 @@ pub enum AppState {
     RemovePlayer,
     FindPlayer,
     EditPlayer,
-    ListAllPlayer,
-    Quit,
+    Ranking,
+    Exit,
 }
 
 #[derive(Default)]
@@ -83,7 +85,8 @@ impl App<'_> {
                         self.menu_activity = None;
                         self.change_state(AppState::MainMenu);
                     }
-                }
+                },
+                AppState::Ranking => self.update_ranking(frame, event),
                 _ => todo!(),
             };
 
@@ -94,10 +97,33 @@ impl App<'_> {
         if self.state_changed == last_state_changed {
             self.state_changed = false;
         }
-        if matches!(self.state, AppState::Quit) {
+        if matches!(self.state, AppState::Exit) {
             Ok(true)
         } else {
             Ok(false)
+        }
+    }
+
+    fn update_ranking(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
+        if self.state_changed {
+            self.ranking_activity = Some(ranking::RankingActivity::new());
+        }
+
+        let ranking = self.ranking_activity.as_mut().unwrap();
+        if !self.gameplay_move_save {
+            if let Some(player) = data_manager!(get_current_player) {
+                self.gameplay_move_save = true;
+                ranking.set_save(player);
+                ranking.by_score();
+            }
+        }
+
+        ranking.draw(frame);
+        ranking.update(event);
+
+        if ranking.should_exit {
+            self.gameplay_move_save = false;
+            self.change_state(AppState::MainMenu);
         }
     }
 
@@ -120,8 +146,8 @@ impl App<'_> {
             }
         }
 
-        if menu.exit {
-            self.change_state(AppState::Quit);
+        if menu.should_exit {
+            self.change_state(AppState::Exit);
         }
     }
 
@@ -136,7 +162,7 @@ impl App<'_> {
         if !gameplay.show_ranking {
             gameplay.draw(frame);
             gameplay.update(event);
-            if gameplay.exit {
+            if gameplay.should_exit {
                 self.change_state(AppState::MainMenu);
             }
         } else {
@@ -150,7 +176,7 @@ impl App<'_> {
             ranking.draw(frame);
             ranking.update(event);
 
-            if ranking.exit {
+            if ranking.should_exit {
                 ranking.reset();
                 self.gameplay_move_save = false;
                 gameplay.show_ranking = false;

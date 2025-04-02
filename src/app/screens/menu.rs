@@ -31,9 +31,8 @@ use super::{
 
 #[derive(Default)]
 pub struct MenuActivity<'a> {
-    pub exit: bool,
+    pub should_exit: bool,
     player: Player,
-    player_requested: bool,
     state: MenuState<'a>,
     focus: usize,
     selected_time: Duration,
@@ -105,7 +104,7 @@ impl Default for MenuState<'_> {
 impl MenuActivity<'_> {
     pub fn new() -> Self {
         Self {
-            exit: false,
+            should_exit: false,
             focus: 2,
             ..Default::default()
         }
@@ -120,8 +119,8 @@ impl MenuActivity<'_> {
             menu = rect_move(menu, area, progress)
         } else if matches!(self.state, MenuState::Exiting) {
             let area = frame.area();
-            let interpolation = Interpolation::CircleOut;
-            let mut progress = inverse_lerp(0.0..=1.0, self.transition_time.as_secs_f32());
+            let interpolation = Interpolation::PowOut { value: 5 };
+            let mut progress = inverse_lerp(0.3..=1.3, self.transition_time.as_secs_f32());
             progress = interpolation.apply(progress);
             menu = rect_move(area, menu, progress)
         } else if matches!(
@@ -359,7 +358,6 @@ impl MenuActivity<'_> {
     pub fn exiting_activity(&mut self) {
         self.state = MenuState::Exiting;
         self.transition_time = Duration::default();
-        self.player_requested = false;
     }
 
     pub fn can_enter_another_activity(&self) -> bool {
@@ -376,7 +374,7 @@ impl MenuActivity<'_> {
             4 => Some(AppState::RemovePlayer),
             5 => Some(AppState::FindPlayer),
             6 => Some(AppState::EditPlayer),
-            7 => Some(AppState::ListAllPlayer),
+            7 => Some(AppState::Ranking),
             _ => None,
         }
     }
@@ -385,7 +383,7 @@ impl MenuActivity<'_> {
         matches!(self.state, MenuState::Menu)
             || matches!(self.state, MenuState::Entering)
                 && self.transition_time.as_secs_f32() <= 0.5
-            || matches!(self.state, MenuState::Exiting) && self.transition_time.as_secs_f32() >= 1.1
+            || matches!(self.state, MenuState::Exiting) && self.transition_time.as_secs_f32() >= 1.5
     }
 
     fn draw_login(&mut self, frame: &mut Frame<'_>) {
@@ -616,13 +614,6 @@ impl Activity for MenuActivity<'_> {
             }
         }
 
-        if !self.player_requested {
-            if let Some(player) = data_manager!(get_current_player) {
-                self.player_requested = true;
-                self.player = player;
-            }
-        }
-
         if matches!(self.state, MenuState::Exiting) && self.transition_time.as_secs_f32() >= 1.1 {
             self.state = MenuState::Menu;
         }
@@ -657,11 +648,11 @@ impl Activity for MenuActivity<'_> {
                     self.state = MenuState::Entering;
 
                     if self.focus == 8 {
-                        self.exit = true;
+                        self.should_exit = true;
                     }
                 }
                 KeyCode::Char('q') | KeyCode::Esc => {
-                    self.exit = true;
+                    self.should_exit = true;
                 }
                 _ => (),
             }
@@ -775,7 +766,7 @@ impl Activity for MenuActivity<'_> {
                     }
                     _ => {
                         if key.code == KeyCode::Char('q') || key.code == KeyCode::Esc {
-                            self.exit = true;
+                            self.should_exit = true;
                         }
                     }
                 },

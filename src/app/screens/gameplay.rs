@@ -41,7 +41,7 @@ pub struct GameplayActivity {
     itoa_buffer: itoa::Buffer,
     animations: Vec<AnimationCell>,
 
-    pub exit: bool,
+    pub should_exit: bool,
     pub game_over: bool,
     dead_dialog: bool,
     dead_dialog_chose: Arc<AtomicI8>,
@@ -73,7 +73,7 @@ impl GameplayActivity {
             return;
         }
         if matches!(key.code, KeyCode::Char('q')) || matches!(key.code, KeyCode::Esc) {
-            self.exit = true;
+            self.should_exit = true;
         }
         if self.game_over {
             return;
@@ -382,7 +382,7 @@ impl GameplayActivity {
         } else if chose == 1 {
             self.show_ranking = true;
         } else if chose == 2 {
-            self.exit = true;
+            self.should_exit = true;
         }
         self.dead_dialog_chose
             .store(-1, std::sync::atomic::Ordering::Relaxed);
@@ -424,7 +424,7 @@ impl Activity for GameplayActivity {
             self.gameplay_update_input(event);
         }
 
-        if self.exit && self.game_over {
+        if self.should_exit && self.game_over {
             data_manager!(save_current_player, self.get_save());
         }
 

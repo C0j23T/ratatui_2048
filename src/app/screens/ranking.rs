@@ -26,7 +26,6 @@ const ITEM_HEIGHT: usize = 1;
 pub struct RankingActivity {
     itoa_buffer: itoa::Buffer,
     save: Player,
-    players: Vec<Player>,
     players_requested: bool,
     app_time: Duration,
     by_score: bool,
@@ -36,7 +35,7 @@ pub struct RankingActivity {
     longest_item_lens: (u16, u16, u16),
     scroll_state: ScrollbarState,
 
-    pub exit: bool,
+    pub should_exit: bool,
 }
 
 impl RankingActivity {
@@ -47,19 +46,16 @@ impl RankingActivity {
     }
 
     pub fn reset(&mut self) {
-        self.exit = false;
+        self.should_exit = false;
         self.save = Default::default();
         self.app_time = Default::default();
     }
 
     pub fn set_save(&mut self, save: Player) {
         self.save = save;
-        self.show_items = self.players.clone();
+        self.show_items.clear();
         self.show_items.push(self.save.clone());
-        self.constrant_len();
-        self.scroll_state = self
-            .scroll_state
-            .content_length(self.show_items.len() * ITEM_HEIGHT);
+        self.players_requested = false;
     }
 
     pub fn by_score(&mut self) {
@@ -156,7 +152,7 @@ impl RankingActivity {
         };
 
         if matches!(key.code, KeyCode::Char('q')) || matches!(key.code, KeyCode::Esc) {
-            self.exit = true;
+            self.should_exit = true;
         }
 
         if key.kind != KeyEventKind::Press {
@@ -297,10 +293,9 @@ impl Activity for RankingActivity {
 
         if !self.players_requested {
             if let Some(players) = data_manager!(get_players_best_except_self) {
-                self.players = players;
                 self.players_requested = true;
                 self.constrant_len();
-                self.show_items.extend(self.players.clone());
+                self.show_items.extend(players);
                 self.scroll_state = self
                     .scroll_state
                     .content_length(self.show_items.len() * ITEM_HEIGHT);
