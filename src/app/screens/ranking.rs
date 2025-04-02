@@ -13,7 +13,10 @@ use ratatui::{
     },
 };
 
-use crate::{app::{structs::Player, time::TIME, utils::fade_in}, data_manager};
+use crate::{
+    app::{structs::Player, time::TIME, utils::fade_in},
+    data_manager,
+};
 
 use super::Activity;
 
@@ -260,7 +263,7 @@ impl RankingActivity {
         .column_highlight_style(Style::new().bg(tailwind::INDIGO.c400))
         .cell_highlight_style(Style::new().bg(tailwind::INDIGO.c400))
         .highlight_symbol(Text::from(vec![bar.into(), "".into()]))
-        .bg(Color::Rgb(0, 0, 0))
+        .bg(Color::Reset)
         .highlight_spacing(HighlightSpacing::Always);
         frame.render_stateful_widget(t, area, &mut self.state);
     }
@@ -292,10 +295,20 @@ impl Activity for RankingActivity {
             self.app_time += time.delta;
         }
 
-        if self.players_requested {
+        if !self.players_requested {
             if let Some(players) = data_manager!(get_players_best_except_self) {
                 self.players = players;
                 self.players_requested = true;
+                self.constrant_len();
+                self.show_items.extend(self.players.clone());
+                self.scroll_state = self
+                    .scroll_state
+                    .content_length(self.show_items.len() * ITEM_HEIGHT);
+                if self.by_score {
+                    self.by_score();
+                } else {
+                    self.by_timestamp();
+                }
             }
         }
 

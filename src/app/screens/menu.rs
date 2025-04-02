@@ -336,15 +336,11 @@ impl MenuActivity<'_> {
                     let width = rolling_background::WIDTH as i32 - length;
                     let height = rolling_background::HEIGHT as i32 - length;
 
-                    let mut rng = rand::rng();
-                    let a_x = rng.random_range(length..width - area_width);
-                    let a_y = rng.random_range(length..height - area_height);
-                    let direction = rng.random_bool(0.5);
-                    let motion = if rng.random_bool(0.5) {
-                        -length
-                    } else {
-                        length
-                    };
+                    let mut rng = rand::thread_rng();
+                    let a_x = rng.gen_range(length..width - area_width);
+                    let a_y = rng.gen_range(length..height - area_height);
+                    let direction = rng.gen_bool(0.5);
+                    let motion = if rng.gen_bool(0.5) { -length } else { -length };
                     let b_x = a_x + if direction { motion } else { 0 };
                     let b_y = a_y + if !direction { motion } else { 0 };
                     self.bg_rect_a = Rect::new(a_x as u16, a_y as u16, area.width, area.height);
@@ -791,12 +787,7 @@ impl Activity for MenuActivity<'_> {
 mod rolling_background {
     use std::sync::LazyLock;
 
-    use ratatui::{
-        buffer::Buffer,
-        layout::Rect,
-        style::{Color, Style},
-        widgets::Widget,
-    };
+    use ratatui::{buffer::Buffer, layout::Rect, style::Color, widgets::Widget};
 
     use crate::app::ascii::NOVAK;
 
@@ -829,38 +820,48 @@ mod rolling_background {
         ]
     });
 
+    static CHAR_INDEX_MAP: LazyLock<[usize; 256]> = LazyLock::new(|| {
+        let mut map = [0; 256];
+        for (i, &s) in CHAR_LIST.iter().enumerate() {
+            if let Some(c) = s.as_bytes().first() {
+                map[*c as usize] = i;
+            }
+        }
+        map
+    });
+
     pub const WIDTH: usize = 960;
     pub const HEIGHT: usize = 270;
 
     #[inline]
-    fn color_map(input: &str) -> Color {
-        let index = CHAR_LIST
-            .iter()
-            .enumerate()
-            .find(|(_, x)| **x == input)
-            .map_or(0, |(x, _)| x);
-        COLOR[index]
-    }
+    fn get_chars(x: usize, y: usize, len: usize) -> &'static [char] {
+        let row_start = y * WIDTH;
+        
 
-    #[inline]
-    fn get_character(x: u16, y: u16) -> &'static str {
-        let x = x as usize;
-        let y = y as usize;
-        let index = (y.min(HEIGHT) * WIDTH + x.min(WIDTH)).min(WIDTH * HEIGHT - 2);
-        &NOVAK[index..=index]
+        let start = x + row_start;
+        let end = x + row_start + len.min(WIDTH);
+
+        &NOVAK[start..end]
     }
 
     impl Widget for RollingBackground {
         fn render(self, area: Rect, buf: &mut Buffer) {
+            let mut char_buffer = [0u8; 4];
             for y in 0..area.height {
-                for x in 0..area.width {
-                    if buf[(x, y)].symbol() != " " {
+                let global_y = ((area.y + y) as usize).min(HEIGHT);
+
+                let chars = get_chars(area.x as usize, global_y, area.width as usize);
+                for (x, &c) in chars.iter().enumerate() {
+                    let cell = &mut buf[(x as u16, y)];
+                    if cell.symbol() != " " {
                         continue;
                     }
-                    let c = get_character(x + area.x, y + area.y);
-                    let col = color_map(c);
-                    let style = Style::default().fg(col);
-                    buf.set_string(x, y, c, style);
+
+                    let color = CHAR_INDEX_MAP[c as u8 as usize];
+                    let color = COLOR.get(color).unwrap();
+
+                    let symbol = c.encode_utf8(&mut char_buffer);
+                    cell.set_symbol(&symbol).set_fg(*color);
                 }
             }
         }

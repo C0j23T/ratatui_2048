@@ -342,8 +342,8 @@ impl GameplayActivity {
     pub fn queue_clear_message(&mut self) {
         let dialog_chose = self.dead_dialog_chose.clone();
         let ascii_art = if self.score < self.high_score.score {
-            let mut rng = rand::rng();
-            let num = rng.random_range(1..=10);
+            let mut rng = rand::thread_rng();
+            let num = rng.gen_range(1..=10);
             if num <= 2 {
                 ascii::god_fall()
             } else {

@@ -11,9 +11,9 @@ pub mod movement;
 pub type Grid = Vec<Vec<Cell>>;
 
 pub fn start_up(cells: &mut Grid) -> AnimationCell {
-    let mut rng = rand::rng();
-    let x = rng.random_range(0..4_usize);
-    let y = rng.random_range(0..4_usize);
+    let mut rng = rand::thread_rng();
+    let x = rng.gen_range(0..4_usize);
+    let y = rng.gen_range(0..4_usize);
 
     cells[x][y] = Cell::new(2);
     AnimationCell {
@@ -36,7 +36,7 @@ pub fn add_cell(cells: &mut Grid) -> Option<AnimationCell> {
         }
     }
 
-    let mut rng = rand::rng();
+    let mut rng = rand::thread_rng();
     empty_cells.shuffle(&mut rng);
     if !empty_cells.is_empty() {
         let coord = empty_cells[0];

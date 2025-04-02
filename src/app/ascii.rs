@@ -1,3 +1,5 @@
+use std::sync::LazyLock;
+
 use indoc::indoc;
 
 pub fn the_end() -> String {
@@ -42,4 +44,5 @@ pub fn logo() -> String {
     "}.to_string()
 }
 
-pub static NOVAK: &str = include_str!("menu/novak.txt");
+// pub static NOVAK: &str = include_str!("menu/novak.txt");
+pub static NOVAK: LazyLock<Vec<char>> = LazyLock::new(|| include_str!("menu/novak.txt").chars().collect());
