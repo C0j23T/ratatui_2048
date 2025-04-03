@@ -206,9 +206,7 @@ impl MenuActivity<'_> {
 
             进入游戏
             账号登出
-            删除玩家
-            查找玩家
-            编辑玩家
+            管理玩家
             查看世界排名
             退出
         "}
@@ -373,10 +371,8 @@ impl MenuActivity<'_> {
         match self.focus {
             2 => Some(AppState::Gameplay),
             3 => Some(AppState::SwitchPlayer),
-            4 => Some(AppState::RemovePlayer),
-            5 => Some(AppState::FindPlayer),
-            6 => Some(AppState::EditPlayer),
-            7 => Some(AppState::Ranking),
+            4 => Some(AppState::ManagePlayer),
+            5 => Some(AppState::Ranking),
             _ => None,
         }
     }
@@ -417,6 +413,12 @@ impl MenuActivity<'_> {
             return;
         };
         if logged_in {
+            let divs = Layout::vertical([
+                Constraint::Fill(1),
+                Constraint::Length(9),
+                Constraint::Max(1),
+            ])
+            .split(area);
             let [_, menu, _] = Layout::horizontal([
                 Constraint::Fill(1),
                 Constraint::Percentage(40),
@@ -520,7 +522,7 @@ impl Activity for MenuActivity<'_> {
             let area = frame.area();
             let divs = Layout::vertical([
                 Constraint::Fill(1),
-                Constraint::Length(11),
+                Constraint::Length(9),
                 Constraint::Max(1),
             ])
             .split(area);
@@ -633,13 +635,13 @@ impl Activity for MenuActivity<'_> {
                     self.focus -= 1;
                     self.selected_time = Duration::default();
                     if self.focus < 2 {
-                        self.focus = 8;
+                        self.focus = 6;
                     }
                 }
                 KeyCode::Down => {
                     self.focus += 1;
                     self.selected_time = Duration::default();
-                    if self.focus > 8 {
+                    if self.focus > 6 {
                         self.focus = 2;
                     }
                 }

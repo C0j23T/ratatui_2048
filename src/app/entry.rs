@@ -74,7 +74,7 @@ pub fn run_app(mut data: Box<dyn DataManager>) -> Result<()> {
     }
 
     let mut app = App::new(is_first_launch);
-    // app.change_state(super::screens::AppState::Gameplay);
+    app.change_state(super::screens::AppState::ManagePlayer);
 
     init()?;
     let mut terminal = Terminal::new(CrosstermBackend::new(stdout()))?;

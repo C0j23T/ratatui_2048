@@ -6,12 +6,13 @@ use ratatui::{Frame, Terminal, prelude::Backend};
 
 use crate::data_manager;
 
-mod dialog;
+pub(crate) mod dialog;
 mod gameplay;
 mod menu;
 mod simple_ranking;
 mod find_player;
 mod oobe;
+mod manage;
 
 pub trait Activity {
     fn draw(&mut self, frame: &mut Frame<'_>);
@@ -26,9 +27,7 @@ pub enum AppState {
     MainMenu,
     Gameplay,
     SwitchPlayer,
-    RemovePlayer,
-    FindPlayer,
-    EditPlayer,
+    ManagePlayer,
     Ranking,
     Exit,
 }
@@ -43,6 +42,7 @@ pub struct App<'a> {
     ranking_activity: Option<simple_ranking::RankingActivity>,
     menu_activity: Option<menu::MenuActivity<'a>>,
     oobe_activity: Option<oobe::OobeActivity<'a>>,
+    remove_activity: Option<manage::ManageActivity<'a>>,
     gameplay_move_save: bool,
 }
 
@@ -103,6 +103,7 @@ impl App<'_> {
                 }
                 AppState::Ranking => self.update_ranking(frame, event),
                 AppState::FirstLaunch => self.update_oobe(frame, event),
+                AppState::ManagePlayer => self.update_remove(frame, event),
                 _ => todo!(),
             };
 
@@ -120,6 +121,21 @@ impl App<'_> {
         }
     }
 
+    fn update_remove(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
+        if self.state_changed {
+            self.remove_activity = Some(manage::ManageActivity::new());
+        }
+
+        let remove = self.remove_activity.as_mut().unwrap();
+        remove.draw(frame);
+        remove.update(event);
+
+        if remove.should_exit {
+            self.change_state(AppState::MainMenu);
+            self.remove_activity = None;
+        }
+    }
+
     fn update_oobe(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
         if self.state_changed {
             self.oobe_activity = Some(oobe::OobeActivity::new());
@@ -133,9 +149,7 @@ impl App<'_> {
             menu.draw(frame);
             menu.update(None);
         }
-        let buf = frame.buffer_mut().clone();
-        frame.buffer_mut().reset();
-        oobe.draw_oobe(frame,  buf);
+        oobe.draw(frame);
         oobe.update(event);
         
 

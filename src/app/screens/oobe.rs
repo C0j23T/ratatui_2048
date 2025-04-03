@@ -3,11 +3,7 @@ use std::time::Duration;
 use crossterm::event::{Event, KeyCode, KeyEventKind};
 use rand::{Rng, SeedableRng, thread_rng};
 use ratatui::{
-    Frame,
-    buffer::Buffer,
-    layout::{Alignment, Constraint, Layout},
-    style::{Color, Style, Stylize, palette::tailwind},
-    widgets::{Block, Paragraph},
+    buffer::Buffer, layout::{Alignment, Constraint, Layout}, style::{palette::tailwind, Color, Modifier, Style, Stylize}, widgets::{Block, Paragraph}, Frame
 };
 use tui_textarea::{CursorMove, TextArea};
 
@@ -27,6 +23,7 @@ pub struct OobeActivity<'a> {
     random_char_table: Vec<char>,
     phase: u16,
     text_foctor: u16,
+    drip_buffer: Buffer,
 }
 
 impl OobeActivity<'_> {
@@ -50,7 +47,8 @@ impl OobeActivity<'_> {
         ];
         let textarea_text = indoc::indoc! {"
             ===== 欢迎使用 玩家得分排名系统 =====
-            .          制作：畅通无组
+                       制作：畅通无组
+            =====================================
 
             请输入用户名：
         "};
@@ -68,31 +66,32 @@ impl OobeActivity<'_> {
         text_area.move_cursor(CursorMove::Down);
         text_area.move_cursor(CursorMove::Down);
         text_area.move_cursor(CursorMove::Down);
+        text_area.move_cursor(CursorMove::Down);
         Self {
             random_char_table: char_table,
             text_area,
-            spam_interval: Duration::from_secs(3),
+            spam_interval: Duration::from_secs(2),
             ..Default::default()
         }
     }
 
     /// higher means more pixels per frame are modified in the animation
-    const DRIP_SPEED: usize = 500;
+    const DRIP_SPEED: usize = 1000;
 
-    fn drip(&mut self, frame: &mut Frame<'_>, transition_to: Buffer) {
-        let area = frame.area();
-        let buf = frame.buffer_mut();
+    fn drip(&mut self) {
+        let area = *self.drip_buffer.area();
+        let buf = &mut self.drip_buffer;
+        let frame_count = self.phase_time.as_secs_f32() * entry::FPS as f32;
 
         // a seeded rng as we have to move the same random pixels each frame
-        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(10);
-        let frame_count = self.phase_time.as_secs_f32() * entry::FPS as f32;
+        let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(10 + frame_count as u64);
         let ramp_frames = 450.0;
         let fractional_speed = frame_count / ramp_frames;
         let variable_speed = Self::DRIP_SPEED as f32 * fractional_speed.powi(3);
-        let pixel_count = (frame_count * variable_speed).floor() as usize;
+        let pixel_count = variable_speed.floor() as usize;
         for _ in 0..pixel_count {
             let src_x = rng.gen_range(0..area.width);
-            let src_y = rng.gen_range(1..area.height - 1);
+            let src_y = rng.gen_range(0..area.height);
             let src = {
                 let index = buf.index_of(src_x, src_y);
                 let ptr = buf.content.as_ptr();
@@ -103,10 +102,16 @@ impl OobeActivity<'_> {
                 let dest_x = rng
                     .gen_range(src_x.saturating_sub(5)..src_x.saturating_add(5))
                     .clamp(area.left(), area.right() - 1);
-                let dest_y = area.top() + 1;
+                let dest_y = area.top();
 
                 let dest = &mut buf[(dest_x, dest_y)];
-                dest.reset();
+                if rng.gen_ratio(1, 10) {
+                    dest.set_symbol(src.symbol());
+                    dest.set_skip(src.skip);
+                    dest.set_style(src.style());
+                } else {
+                    dest.reset();
+                }
             } else {
                 // move the pixel down one row
                 let dest_x = src_x;
@@ -117,30 +122,8 @@ impl OobeActivity<'_> {
                 buf[(dest_x, dest_y)].set_style(src.style());
             }
         }
-        let mut white_count = 0;
-        for row in 1..area.height - 1 {
-            for col in 0..area.width {
-                if buf[(col, row)].bg != Color::Reset {
-                    white_count += 1;
-                }
-                if row == 1 {
-                    buf[(col, 0)] = buf[(col, 1)].clone();
-                }
-            }
-        }
-        if white_count <= 1 {
-            self.phase = 5;
-        }
-
-        for row in 0..area.height {
-            for col in 0..area.width {
-                if buf[(col, row)].bg == Color::Reset {
-                    let transition_to = &transition_to[(col, row)];
-                    buf[(col, row)].set_symbol(transition_to.symbol());
-                    buf[(col, row)].set_skip(transition_to.skip);
-                    buf[(col, row)].set_style(transition_to.style());
-                }
-            }
+        if buf.content.iter().all(|x| x.bg == Color::Reset) {
+            self.phase = 6;
         }
     }
 
@@ -185,8 +168,10 @@ impl OobeActivity<'_> {
             .bg(tailwind::INDIGO.c900);
         frame.render_widget(paragraph, welcome_div);
     }
+}
 
-    pub fn draw_oobe(&mut self, frame: &mut Frame<'_>, menu_buffer: Buffer) {
+impl Activity for OobeActivity<'_> {
+    fn draw(&mut self, frame: &mut Frame<'_>) {
         let area = frame.area();
 
         if self.phase == 1 {
@@ -205,7 +190,6 @@ impl OobeActivity<'_> {
                 .set_style(Style::default().bg(bg).fg(tailwind::WHITE));
             if progress >= 1.0 && self.phase == 2 {
                 self.phase = 3;
-                self.render_menu = true;
                 self.phase_time = Duration::default();
             }
         }
@@ -215,7 +199,7 @@ impl OobeActivity<'_> {
         } else if self.phase == 3 {
             let block = Block::default().bg(tailwind::WHITE);
             frame.render_widget(block, area);
-            if self.phase_time.as_secs() == 1 {
+            if self.phase_time.as_secs_f32() >= 0.5 {
                 self.phase = 4;
                 self.phase_time = Duration::default();
             }
@@ -223,13 +207,24 @@ impl OobeActivity<'_> {
             let block = Block::default().bg(tailwind::WHITE);
             frame.render_widget(block, area);
             self.draw_welcome(frame);
-            self.drip(frame, menu_buffer);
+            self.drip_buffer = frame.buffer_mut().clone();
+            self.phase = 5;
+            self.render_menu = true;
+        } else if self.phase == 5 {
+            self.drip();
+            let buf = &mut frame.buffer_mut().content;
+            buf.iter_mut()
+                .zip(&self.drip_buffer.content)
+                .for_each(|(x, y)| {
+                    if y.bg != Color::Reset {
+                        x.set_symbol(y.symbol());
+                        x.set_skip(y.skip);
+                        x.modifier = Modifier::empty();
+                        x.set_style(y.style());
+                    }
+                });
         }
     }
-}
-
-impl Activity for OobeActivity<'_> {
-    fn draw(&mut self, _frame: &mut Frame<'_>) {}
 
     fn update(&mut self, event: Option<Event>) {
         {
@@ -238,7 +233,7 @@ impl Activity for OobeActivity<'_> {
             self.phase_time += time.delta;
         }
 
-        if self.phase == 5 {
+        if self.phase == 6 {
             self.should_skip = true;
         }
 
