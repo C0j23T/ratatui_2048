@@ -3,7 +3,11 @@ use std::time::Duration;
 use crossterm::event::{Event, KeyCode, KeyEventKind};
 use rand::{Rng, SeedableRng, thread_rng};
 use ratatui::{
-    buffer::Buffer, layout::{Alignment, Constraint, Layout}, style::{palette::tailwind, Color, Modifier, Style, Stylize}, widgets::{Block, Paragraph}, Frame
+    Frame,
+    buffer::Buffer,
+    layout::{Alignment, Constraint, Layout},
+    style::{Color, Modifier, Style, Stylize, palette::tailwind},
+    widgets::{Block, Paragraph},
 };
 use tui_textarea::{CursorMove, TextArea};
 
@@ -52,13 +56,7 @@ impl OobeActivity<'_> {
 
             请输入用户名：
         "};
-        let mut text_area = TextArea::new(
-            textarea_text
-                .split('\n')
-                .into_iter()
-                .map(String::from)
-                .collect(),
-        );
+        let mut text_area = TextArea::new(textarea_text.split('\n').map(String::from).collect());
         let style = Style::default().fg(Color::from_u32(0xffffff));
         text_area.set_style(style);
         text_area.set_cursor_line_style(style);

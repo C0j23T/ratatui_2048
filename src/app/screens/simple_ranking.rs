@@ -28,7 +28,6 @@ pub struct RankingActivity {
     save: Player,
     players_requested: bool,
     app_time: Duration,
-    by_score: bool,
 
     show_items: Vec<Player>,
     state: TableState,
@@ -60,21 +59,6 @@ impl RankingActivity {
 
     pub fn by_score(&mut self) {
         self.show_items.sort_by(|a, b| b.cmp(a));
-        self.by_score = true;
-        self.set_row(
-            self.show_items
-                .iter()
-                .enumerate()
-                .find(|(_, x)| x.name == self.save.name)
-                .map_or(0, |x| x.0),
-        );
-    }
-
-    #[allow(dead_code)]
-    pub fn by_timestamp(&mut self) {
-        self.show_items
-            .sort_by(|a, b| b.best_timestamp.cmp(&a.best_timestamp));
-        self.by_score = false;
         self.set_row(
             self.show_items
                 .iter()
@@ -209,15 +193,11 @@ impl RankingActivity {
         let rows = self.show_items.iter().enumerate().map(|(i, data)| {
             let bg = Color::Reset;
 
-            let fg = if self.by_score {
-                match i {
-                    0 => tailwind::AMBER.c200,
-                    1 => tailwind::NEUTRAL.c300,
-                    2 => tailwind::YELLOW.c500,
-                    _ => tailwind::INDIGO.c50,
-                }
-            } else {
-                tailwind::INDIGO.c50
+            let fg = match i {
+                0 => tailwind::AMBER.c200,
+                1 => tailwind::NEUTRAL.c300,
+                2 => tailwind::YELLOW.c500,
+                _ => tailwind::INDIGO.c50,
             };
 
             let time = (chrono::Utc.timestamp_millis_opt(data.best_timestamp).unwrap()
@@ -293,11 +273,7 @@ impl Activity for RankingActivity {
                 self.scroll_state = self
                     .scroll_state
                     .content_length(self.show_items.len() * ITEM_HEIGHT);
-                if self.by_score {
-                    self.by_score();
-                } else {
-                    self.by_timestamp();
-                }
+                self.by_score();
             }
         }
 

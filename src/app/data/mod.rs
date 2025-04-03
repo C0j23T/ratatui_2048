@@ -93,15 +93,15 @@ impl DataManager for DummyDataManager {
         Ok(Some(Player::default()))
     }
 
-    fn find_player(&mut self, player: Player) -> Result<Vec<Player>, TryRecvError> {
+    fn find_player(&mut self, _player: Player) -> Result<Vec<Player>, TryRecvError> {
         Ok(Self::gen_example_players())
     }
 
-    fn update_player(&mut self, player: Player) -> Result<bool, TryRecvError> {
+    fn update_player(&mut self, _player: Player) -> Result<bool, TryRecvError> {
         Ok(true)
     }
 
-    fn remove_player(&mut self, player: Player) -> Result<bool, TryRecvError> {
+    fn remove_player(&mut self, _player: Player) -> Result<bool, TryRecvError> {
         Ok(true)
     }
 }

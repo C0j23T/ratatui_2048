@@ -339,7 +339,7 @@ impl MenuActivity<'_> {
                     let a_x = rng.gen_range(length..width - area_width);
                     let a_y = rng.gen_range(length..height - area_height);
                     let direction = rng.gen_bool(0.5);
-                    let motion = if rng.gen_bool(0.5) { -length } else { -length };
+                    let motion = if rng.gen_bool(0.5) { length } else { -length };
                     let b_x = a_x + if direction { motion } else { 0 };
                     let b_y = a_y + if !direction { motion } else { 0 };
                     self.bg_rect_a = Rect::new(a_x as u16, a_y as u16, area.width, area.height);
@@ -854,7 +854,7 @@ mod rolling_background {
                     let color = COLOR.get(color).unwrap();
 
                     let symbol = c.encode_utf8(&mut char_buffer);
-                    cell.set_symbol(&symbol).set_fg(*color);
+                    cell.set_symbol(symbol).set_fg(*color);
                 }
             }
         }

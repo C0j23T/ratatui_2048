@@ -3,7 +3,7 @@
 use crossterm::event::{Event, KeyCode, KeyEventKind};
 use ratatui::Frame;
 
-use crate::app::ranking::PlayerListSelector;
+use crate::app::{ranking::PlayerListSelector, structs::Player};
 
 use super::Activity;
 
@@ -12,13 +12,13 @@ pub struct ManageActivity<'a> {
     pub should_exit: bool,
     selector: PlayerListSelector<'a>,
     in_selector: bool,
-
+    player: Player,
 }
 
 impl ManageActivity<'_> {
     pub fn new() -> Self {
         Self {
-            selector: PlayerListSelector::new("删除玩家"),
+            selector: PlayerListSelector::new("玩家管理"),
             in_selector: true,
             ..Default::default()
         }
@@ -26,7 +26,7 @@ impl ManageActivity<'_> {
 
     fn reenter_selector(&mut self) {
         self.in_selector = true;
-        self.selector = PlayerListSelector::new("删除玩家");
+        self.selector = PlayerListSelector::new("玩家管理");
     }
 }
 
@@ -44,6 +44,13 @@ impl Activity for ManageActivity<'_> {
 
             if self.selector.should_exit {
                 self.in_selector = false;
+                if let Some(player) = self.selector.get_result() {
+                    self.player = player;
+                    let selector = std::mem::take(&mut self.selector);
+                    drop(selector);
+                } else {
+                    self.should_exit = true;
+                }
             }
             return;
         }

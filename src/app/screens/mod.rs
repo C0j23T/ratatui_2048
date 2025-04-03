@@ -7,12 +7,12 @@ use ratatui::{Frame, Terminal, prelude::Backend};
 use crate::data_manager;
 
 pub(crate) mod dialog;
-mod gameplay;
-mod menu;
-mod simple_ranking;
 mod find_player;
-mod oobe;
+mod gameplay;
 mod manage;
+mod menu;
+mod oobe;
+mod simple_ranking;
 
 pub trait Activity {
     fn draw(&mut self, frame: &mut Frame<'_>);
@@ -86,11 +86,7 @@ impl App<'_> {
                 }
                 dialog_manager.has_dialog()
             };
-            let event = if !has_dialog  {
-                event
-            } else {
-                None
-            };
+            let event = if !has_dialog { event } else { None };
 
             match self.state {
                 AppState::Gameplay => self.update_gameplay(frame, event),
@@ -132,7 +128,8 @@ impl App<'_> {
 
         if remove.should_exit {
             self.change_state(AppState::MainMenu);
-            self.remove_activity = None;
+            let x = std::mem::take(&mut self.remove_activity);
+            drop(x);
         }
     }
 
@@ -151,13 +148,13 @@ impl App<'_> {
         }
         oobe.draw(frame);
         oobe.update(event);
-        
 
         if oobe.should_exit {
             self.change_state(AppState::Exit);
         } else if oobe.should_skip {
             self.change_state(AppState::MainMenu);
-            self.oobe_activity = None;
+            let x = std::mem::take(&mut self.oobe_activity);
+            drop(x);
         }
     }
 
@@ -181,6 +178,8 @@ impl App<'_> {
         if ranking.should_exit {
             self.gameplay_move_save = false;
             self.ranking_activity = None;
+            let x = std::mem::take(&mut self.ranking_activity);
+            drop(x);
             self.change_state(AppState::MainMenu);
         }
     }
@@ -225,8 +224,10 @@ impl App<'_> {
             gameplay.update(event);
             if gameplay.should_exit {
                 self.change_state(AppState::MainMenu);
-                self.gameplay_activity = None;
-                self.ranking_activity = None;
+                let x = std::mem::take(&mut self.gameplay_activity);
+                drop(x);
+                let x = std::mem::take(&mut self.ranking_activity);
+                drop(x);
             }
         } else {
             let ranking = self.ranking_activity.as_mut().unwrap();
