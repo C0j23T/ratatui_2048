@@ -83,7 +83,7 @@ impl OobeActivity<'_> {
 
         // a seeded rng as we have to move the same random pixels each frame
         let mut rng = rand_chacha::ChaCha8Rng::seed_from_u64(10 + frame_count as u64);
-        let ramp_frames = 450.0;
+        let ramp_frames = 200.0;
         let fractional_speed = frame_count / ramp_frames;
         let variable_speed = Self::DRIP_SPEED as f32 * fractional_speed.powi(3);
         let pixel_count = variable_speed.floor() as usize;

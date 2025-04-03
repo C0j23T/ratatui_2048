@@ -64,7 +64,7 @@ impl PlayerListSelector<'_> {
     fn draw_title(&self, rect: Rect, frame: &mut Frame<'_>) {
         let block = Block::bordered()
             .borders(Borders::TOP)
-            .title(format!("── {} - 请选择要操作的用户 ", self.feature_name))
+            .title(format!("── {} :: 请选择要操作的用户 ", self.feature_name))
             .fg(tailwind::INDIGO.c400);
         frame.render_widget(block, rect);
     }
@@ -79,12 +79,9 @@ impl PlayerListSelector<'_> {
             } else {
                 tailwind::INDIGO.c400
             });
-        frame.render_widget(block, rect);
+        frame.render_widget(&block, rect);
 
-        let [content] = Layout::default()
-            .constraints([Constraint::Min(0)])
-            .margin(1)
-            .areas(rect);
+        let content = block.inner(rect);
         let [search_bar, result_bar] =
             Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).areas(content);
 

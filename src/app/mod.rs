@@ -7,4 +7,4 @@ pub(crate) mod screens;
 pub(crate) mod structs;
 pub(crate) mod time;
 pub(crate) mod utils;
-pub(crate) mod ranking;
+pub(crate) mod manage;

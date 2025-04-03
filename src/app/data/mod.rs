@@ -1,5 +1,7 @@
 use crate::app::structs::Player;
 
+use super::structs::PlayerRecord;
+
 pub enum TryRecvError {
     Empty,
     Timeout,
@@ -48,7 +50,11 @@ impl DummyDataManager {
             best_score: 10000,
             best_time: 1,
             best_timestamp: 1145141919810,
-            records: Vec::default(),
+            records: vec![PlayerRecord {
+                score: 1500,
+                time: 300,
+                timestamp: 114514,
+            }],
         });
         for i in 0..100 {
             players.push(Player {
@@ -57,7 +63,13 @@ impl DummyDataManager {
                 best_score: i * 100,
                 best_time: (i * 100) as i64,
                 best_timestamp: 1145141919810,
-                records: Vec::default(),
+                records: vec![
+                    PlayerRecord {
+                        score: i * 100,
+                        time: (i * 100) as i64,
+                        timestamp: 1145141919810,
+                    }
+                ],
             });
         }
         players
