@@ -649,7 +649,7 @@ impl Activity for MenuActivity<'_> {
                     self.transition_time = Duration::default();
                     self.state = MenuState::Entering;
 
-                    if self.focus == 8 {
+                    if self.focus == 6 {
                         self.should_exit = true;
                     }
                 }

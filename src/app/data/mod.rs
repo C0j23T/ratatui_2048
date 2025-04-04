@@ -50,11 +50,43 @@ impl DummyDataManager {
             best_score: 10000,
             best_time: 1,
             best_timestamp: 1145141919810,
-            records: vec![PlayerRecord {
-                score: 1500,
-                time: 300,
-                timestamp: 114514,
-            }],
+            records: vec![
+                PlayerRecord {
+                    score: 10000,
+                    time: 1,
+                    timestamp: 1145141919810,
+                },
+                PlayerRecord {
+                    score: 1500,
+                    time: 300,
+                    timestamp: 1000000000000,
+                },
+                PlayerRecord {
+                    score: 2400,
+                    time: 300,
+                    timestamp: 900000000000,
+                },
+                PlayerRecord {
+                    score: 2300,
+                    time: 300,
+                    timestamp: 800000000000,
+                },
+                PlayerRecord {
+                    score: 2200,
+                    time: 300,
+                    timestamp: 700000000000,
+                },
+                PlayerRecord {
+                    score: 2100,
+                    time: 300,
+                    timestamp: 600000000000,
+                },
+                PlayerRecord {
+                    score: 2000,
+                    time: 300,
+                    timestamp: 500000000000,
+                },
+            ],
         });
         for i in 0..100 {
             players.push(Player {
@@ -63,13 +95,11 @@ impl DummyDataManager {
                 best_score: i * 100,
                 best_time: (i * 100) as i64,
                 best_timestamp: 1145141919810,
-                records: vec![
-                    PlayerRecord {
-                        score: i * 100,
-                        time: (i * 100) as i64,
-                        timestamp: 1145141919810,
-                    }
-                ],
+                records: vec![PlayerRecord {
+                    score: i * 100,
+                    time: (i * 100) as i64,
+                    timestamp: 1145141919810,
+                }],
             });
         }
         players

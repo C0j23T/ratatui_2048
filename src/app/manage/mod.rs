@@ -65,7 +65,7 @@ impl PlayerListSelector<'_> {
         let block = Block::bordered()
             .borders(Borders::TOP)
             .title(format!("── {} :: 请选择要操作的用户 ", self.feature_name))
-            .fg(tailwind::INDIGO.c400);
+            .fg(tailwind::PURPLE.c50);
         frame.render_widget(block, rect);
     }
 
@@ -177,7 +177,7 @@ impl PlayerListSelector<'_> {
                     .border_type(BorderType::Rounded)
                     .title("─ 提示 "),
             )
-            .fg(tailwind::INDIGO.c400);
+            .fg(tailwind::EMERALD.c400);
         frame.render_widget(para, rect);
     }
 
@@ -349,7 +349,7 @@ impl Activity for PlayerListSelector<'_> {
         self.draw_main_table(table, frame);
         self.draw_hint(hint, frame);
 
-        fade_in(frame, 1.0, self.app_time.as_secs_f32(), None);
+        fade_in(frame, 0.6, self.app_time.as_secs_f32(), Some(10));
     }
 
     fn update(&mut self, event: Option<Event>) {

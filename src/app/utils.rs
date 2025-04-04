@@ -1,5 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use chrono::TimeZone;
 use ratatui::{Frame, layout::Rect, style::Color};
 
 use super::math::{inverse_lerp, lerpf};
@@ -95,4 +96,16 @@ pub fn fade_in(frame: &mut Frame<'_>, duration: f32, time: f32, seed: Option<u32
             }
         }
     }
+}
+
+pub fn format_datetime(time_stamp: i64) -> String {
+    (chrono::Utc.timestamp_millis_opt(time_stamp).unwrap() + chrono::Duration::hours(8))
+        .format("%Y-%m-%d %H:%M:%S")
+        .to_string()
+}
+
+pub fn format_date_short(time_stamp: i64) -> String {
+    (chrono::Utc.timestamp_millis_opt(time_stamp).unwrap() + chrono::Duration::hours(8))
+        .format("%y/%m/%d")
+        .to_string()
 }

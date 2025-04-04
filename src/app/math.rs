@@ -243,22 +243,6 @@ pub fn quadratic(a: f32) -> f32 {
     (-10.0 * a * a + 10.0 * a) * 0.8
 }
 
-pub trait ToF32 {
-    fn to_f32(self) -> f32;
-}
-
-impl ToF32 for i32 {
-    fn to_f32(self) -> f32 {
-        self as f32
-    }
-}
-
-impl ToF32 for f32 {
-    fn to_f32(self) -> f32 {
-        self
-    }
-}
-
 #[inline]
 pub fn inverse_lerp(range: RangeInclusive<f32>, value: f32) -> f32 {
     let min = *range.start();
@@ -266,7 +250,18 @@ pub fn inverse_lerp(range: RangeInclusive<f32>, value: f32) -> f32 {
     if min == max {
         1.0
     } else {
-        ((value.to_f32() - min.to_f32()) / (max.to_f32() - min.to_f32())).clamp(0.0, 1.0)
+        ((value - min) / (max - min)).clamp(0.0, 1.0)
+    }
+}
+
+#[inline]
+pub fn inverse_lerp_f64(range: RangeInclusive<f64>, value: f64) -> f64 {
+    let min = *range.start();
+    let max = *range.end();
+    if min == max {
+        1.0
+    } else {
+        ((value - min) / (max - min)).clamp(0.0, 1.0)
     }
 }
 

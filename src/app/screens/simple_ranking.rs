@@ -1,6 +1,5 @@
 use std::time::Duration;
 
-use chrono::TimeZone;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::{
     Frame,
@@ -14,7 +13,11 @@ use ratatui::{
 };
 
 use crate::{
-    app::{structs::Player, time::TIME, utils::fade_in},
+    app::{
+        structs::Player,
+        time::TIME,
+        utils::{fade_in, format_datetime},
+    },
     data_manager,
 };
 
@@ -118,13 +121,17 @@ impl RankingActivity {
         let score_len = self
             .show_items
             .iter()
-            .map(|x| unicode_width::UnicodeWidthStr::width_cjk(self.itoa_buffer.format(x.best_score)))
+            .map(|x| {
+                unicode_width::UnicodeWidthStr::width_cjk(self.itoa_buffer.format(x.best_score))
+            })
             .max()
             .unwrap_or(0) as u16;
         let time_len = self
             .show_items
             .iter()
-            .map(|x| unicode_width::UnicodeWidthStr::width_cjk(self.itoa_buffer.format(x.best_time)))
+            .map(|x| {
+                unicode_width::UnicodeWidthStr::width_cjk(self.itoa_buffer.format(x.best_time))
+            })
             .max()
             .unwrap_or(0) as u16;
         self.longest_item_lens = (name_len, score_len, time_len);
@@ -200,17 +207,12 @@ impl RankingActivity {
                 _ => tailwind::INDIGO.c50,
             };
 
-            let time = (chrono::Utc.timestamp_millis_opt(data.best_timestamp).unwrap()
-                + chrono::Duration::hours(8))
-            .format("%Y-%m-%d %H:%M:%S")
-            .to_string();
-
             [
                 Cell::from(format!("#{}", i + 1)),
                 Cell::from(data.name.as_str()),
                 Cell::from(self.itoa_buffer.format(data.best_score).to_string()),
                 Cell::from(self.itoa_buffer.format(data.best_time).to_string()),
-                Cell::from(time),
+                Cell::from(format_datetime(data.best_timestamp)),
             ]
             .into_iter()
             .collect::<Row>()
