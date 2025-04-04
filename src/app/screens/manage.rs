@@ -15,8 +15,7 @@ use ratatui::{
     symbols,
     widgets::{
         Axis, Block, BorderType, Borders, Cell, Chart, Clear, Dataset, GraphType, HighlightSpacing,
-        LegendPosition, Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table,
-        TableState,
+        Paragraph, Row, Scrollbar, ScrollbarOrientation, ScrollbarState, Table, TableState,
     },
 };
 use ratatui_image::{
@@ -31,7 +30,7 @@ use crate::{
         math::inverse_lerp_f64,
         structs::Player,
         time::TIME,
-        utils::{format_date_short, format_datetime},
+        utils::{fade_in, format_date_short, format_datetime},
     },
     data_manager,
 };
@@ -123,6 +122,7 @@ impl ManageActivity<'_> {
     fn reenter_selector(&mut self) {
         self.in_selector = true;
         self.selector = PlayerListSelector::new("玩家管理");
+        self.app_time = Duration::default();
     }
 
     fn draw_top(&mut self, area: Rect, frame: &mut Frame<'_>) {
@@ -308,7 +308,6 @@ impl ManageActivity<'_> {
                 ),
                 format_date_short(self.chart_latest),
             ]))
-            .legend_position(Some(LegendPosition::TopLeft))
             .fg(tailwind::EMERALD.c50)
             .block(
                 Block::bordered()
@@ -407,7 +406,6 @@ impl ManageActivity<'_> {
                     self.should_exit = true;
                 }
             }
-            
         }
     }
 
@@ -511,24 +509,23 @@ impl ManageActivity<'_> {
                 }
             }
             KeyCode::Enter => {
-                if self.record_remove_entered {
-                    let Some(index) = self.record_state.selected() else {
-                        return false;
-                    };
-                    self.player.records.remove(index);
-                    self.setup_rows();
-                    self.setup_chart();
-                    self.record_remove_entered = false;
-                    self.update_required = true;
-                    return false;
-                }
-                if self.record_state.selected_cell().is_some() && !self.record_remove_entered {
-                    self.record_remove_entered = true;
-                }
                 if self.renaming {
                     self.renaming = false;
                     self.player.name = self.rename_textarea.lines()[0].clone();
                     self.update_required = true;
+                } else if self.record_remove_entered {
+                    let Some(index) = self.record_state.selected() else {
+                        return false;
+                    };
+                    self.player.records.remove(index);
+                    self.validate_player();
+                    self.setup_rows();
+                    self.setup_chart();
+                    self.record_remove_entered = false;
+                    self.update_required = true;
+                } else if self.record_state.selected_cell().is_some() && !self.record_remove_entered
+                {
+                    self.record_remove_entered = true;
                 }
             }
             KeyCode::Esc => {
@@ -610,6 +607,18 @@ impl ManageActivity<'_> {
             frame.render_widget(&self.rename_textarea, text);
         }
     }
+
+    fn validate_player(&mut self) {
+        self.player.best_score = 0;
+        self.player.best_time = 0;
+        self.player.best_timestamp = 0;
+        let Some(max) = self.player.records.iter().max_by_key(|x| x.score) else {
+            return;
+        };
+        self.player.best_score = max.score;
+        self.player.best_time = max.time;
+        self.player.best_timestamp = max.timestamp;
+    }
 }
 
 impl Activity for ManageActivity<'_> {
@@ -647,22 +656,27 @@ impl Activity for ManageActivity<'_> {
         self.draw_table(records, frame);
         self.draw_chart(chart, frame);
         self.draw_hint(hint, frame);
-        self.draw_overlay(frame)
+        self.draw_overlay(frame);
+
+        fade_in(frame, 0.6, self.app_time.as_secs_f32(), None);
     }
 
     fn update(&mut self, event: Option<Event>) {
-        {
+        if !self.in_selector {
             let time = TIME.read().unwrap();
             self.app_time += time.delta;
         }
 
         self.update_data();
         {
-            let choice = self.remove_choice.load(std::sync::atomic::Ordering::Relaxed);
+            let choice = self
+                .remove_choice
+                .load(std::sync::atomic::Ordering::Relaxed);
             if choice == 0 {
                 self.remove_required = true;
             }
-            self.remove_choice.store(-1, std::sync::atomic::Ordering::Relaxed);
+            self.remove_choice
+                .store(-1, std::sync::atomic::Ordering::Relaxed);
         }
 
         if self.in_selector {
@@ -673,6 +687,7 @@ impl Activity for ManageActivity<'_> {
                 if let Some(player) = self.selector.get_result() {
                     self.record_scroll = self.record_scroll.content_length(player.records.len());
                     self.player = player;
+                    self.validate_player();
                     self.setup_rows();
                     self.setup_chart();
                     let selector = std::mem::take(&mut self.selector);

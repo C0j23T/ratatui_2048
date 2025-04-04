@@ -124,11 +124,7 @@ impl PlayerListSelector<'_> {
             .map(Cell::from)
             .collect::<Row>()
             .bg(tailwind::INDIGO.c600)
-            .fg(if is_table {
-                tailwind::INDIGO.c50
-            } else {
-                tailwind::INDIGO.c300
-            });
+            .fg(tailwind::INDIGO.c50);
 
         let table = Table::new(self.player_rows.clone(), widths)
             .block(
@@ -140,11 +136,19 @@ impl PlayerListSelector<'_> {
             .header(header)
             .highlight_spacing(HighlightSpacing::Always)
             .highlight_symbol("> ")
-            .row_highlight_style(Style::default().bg(if is_table {
-                tailwind::INDIGO.c400
-            } else {
-                tailwind::INDIGO.c500
-            }));
+            .row_highlight_style(
+                Style::default()
+                    .bg(if is_table {
+                        tailwind::INDIGO.c400
+                    } else {
+                        tailwind::INDIGO.c500
+                    })
+                    .fg(if is_table {
+                        tailwind::INDIGO.c50
+                    } else {
+                        tailwind::INDIGO.c100
+                    }),
+            );
 
         frame.render_stateful_widget(table, rect, &mut self.table_state);
 
