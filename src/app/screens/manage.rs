@@ -48,6 +48,7 @@ pub struct ManageActivity<'a> {
     selector: PlayerListSelector<'a>,
     in_selector: bool,
     player: Player,
+    bg_time: Duration,
     app_time: Duration,
 
     avatar: Vec<image::Frame>,
@@ -96,6 +97,7 @@ impl ManageActivity<'_> {
             in_selector: true,
             should_exit: false,
             player: Player::default(),
+            bg_time: Duration::default(),
             app_time: Duration::default(),
             avatar: frames,
             avatar_picker: picker,
@@ -662,9 +664,12 @@ impl Activity for ManageActivity<'_> {
     }
 
     fn update(&mut self, event: Option<Event>) {
-        if !self.in_selector {
+        {
             let time = TIME.read().unwrap();
-            self.app_time += time.delta;
+            self.bg_time += time.delta;
+            if !self.in_selector {
+                self.app_time += time.delta;
+            }
         }
 
         self.update_data();

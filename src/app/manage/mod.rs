@@ -5,7 +5,7 @@ use crossterm::event::{Event, KeyCode, KeyEventKind};
 use ratatui::{
     Frame,
     layout::{Constraint, Layout, Margin, Rect},
-    style::{Style, Stylize, palette::tailwind},
+    style::{Color, Style, Stylize, palette::tailwind},
     widgets::{
         Block, BorderType, Borders, Cell, HighlightSpacing, Paragraph, Row, Scrollbar,
         ScrollbarOrientation, ScrollbarState, Table, TableState,
@@ -71,19 +71,28 @@ impl PlayerListSelector<'_> {
 
     fn draw_left_bar(&mut self, rect: Rect, frame: &mut Frame<'_>) {
         let is_search = matches!(self.cursor_state, CursorState::Search);
+        let fg = if is_search {
+            tailwind::INDIGO.c200
+        } else {
+            tailwind::INDIGO.c400
+        };
         let block = Block::bordered()
             .border_type(BorderType::Rounded)
             .title("─ 查找 ")
-            .fg(if is_search {
-                tailwind::INDIGO.c200
-            } else {
-                tailwind::INDIGO.c400
-            });
+            .fg(fg);
         frame.render_widget(&block, rect);
 
         let content = block.inner(rect);
         let [search_bar, result_bar] =
             Layout::vertical([Constraint::Length(3), Constraint::Min(0)]).areas(content);
+
+        let cursor_color = if self.app_time.as_secs() % 2 == 0 {
+            fg
+        } else {
+            Color::Reset
+        };
+        let cursor_style = Style::default().bg(cursor_color);
+        self.search_bar.set_cursor_style(cursor_style);
 
         frame.render_widget(&self.search_bar, search_bar);
 

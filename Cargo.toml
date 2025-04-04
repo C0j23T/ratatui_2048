@@ -3,8 +3,8 @@ name = "tui2048"
 version = "0.1.0"
 edition = "2024"
 
-# [lib]
-# crate-type = ["cdylib"]
+[lib]
+crate-type = ["cdylib"]
 
 [[bin]]
 name = "tui2048_bin"

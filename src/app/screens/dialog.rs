@@ -43,6 +43,7 @@ pub struct Dialog {
     return_at_next_frame: bool,
     duration: Duration,
 }
+
 impl Dialog {
     pub fn new(
         title: &str,
@@ -99,7 +100,11 @@ impl DialogManager {
             .fg(tailwind::INDIGO.c50)
             .block(
                 Block::bordered()
-                    .border_style(Style::new().bg(tailwind::INDIGO.c600).fg(tailwind::INDIGO.c50))
+                    .border_style(
+                        Style::new()
+                            .bg(tailwind::INDIGO.c600)
+                            .fg(tailwind::INDIGO.c50),
+                    )
                     .border_type(BorderType::Rounded)
                     .title(dialog.title.as_str())
                     .title_alignment(Alignment::Center),
