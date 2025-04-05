@@ -222,7 +222,7 @@ impl App<'_> {
         if !gameplay.show_ranking {
             gameplay.draw(frame);
             gameplay.update(event);
-            if gameplay.should_exit {
+            if gameplay.should_exit && gameplay.record_saved {
                 self.change_state(AppState::MainMenu);
                 let x = std::mem::take(&mut self.gameplay_activity);
                 drop(x);

@@ -86,7 +86,7 @@ impl DataManager for DummyDataManager {
         Ok(Self::gen_example_players())
     }
 
-    fn save_current_player(&mut self, _: Player) -> Result<bool, TryRecvError> {
+    fn save_record(&mut self, _: Player) -> Result<bool, TryRecvError> {
         Ok(true)
     }
 

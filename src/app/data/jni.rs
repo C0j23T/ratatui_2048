@@ -186,7 +186,7 @@ impl DataManager for JniDataManager {
         impl_request_response!(self, GetPlayersExceptSelf, GetPlayersExceptSelf);
     }
 
-    fn save_current_player(&mut self, player: Player) -> Result<bool, TryRecvError> {
+    fn save_record(&mut self, player: Player) -> Result<bool, TryRecvError> {
         impl_request_response!(self, SaveCurrentPlayer(player), SaveCurrentPlayer);
     }
 

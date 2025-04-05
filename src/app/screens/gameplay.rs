@@ -13,14 +13,17 @@ use ratatui::{
     widgets::{Block, BorderType, Borders, Clear, Padding, Paragraph},
 };
 
-use crate::{app::{
-    ascii,
-    gameplay::{movement::*, *},
-    math::{inverse_lerp, lerpf, Interpolation},
-    structs::*,
-    time::TIME,
-    utils::{fade_in, get_time_millis, rect_move, rect_scale},
-}, data_manager};
+use crate::{
+    app::{
+        ascii,
+        gameplay::{movement::*, *},
+        math::{Interpolation, inverse_lerp, lerpf},
+        structs::*,
+        time::TIME,
+        utils::{fade_in, get_time_millis, rect_move, rect_scale},
+    },
+    data_manager,
+};
 
 use super::{
     Activity,
@@ -35,6 +38,7 @@ pub struct GameplayActivity {
     show_score: i32,
     high_score: Player,
     player_requested: bool,
+    pub record_saved: bool,
     play_time: Duration,
     app_time: Duration,
     play_started: bool,
@@ -228,8 +232,7 @@ impl GameplayActivity {
         for cell in &self.animations {
             match cell.animation_type {
                 CellAnimationType::Popup => {
-                    let progress =
-                        inverse_lerp(0.0..=0.8_f32, cell.duration.as_secs_f32());
+                    let progress = inverse_lerp(0.0..=0.8_f32, cell.duration.as_secs_f32());
                     let rect = rect_scale(cols[cell.src.x][cell.src.y], exp_out.apply(progress));
                     frame.render_widget(Clear, rect);
                     frame.render_widget(
@@ -238,8 +241,7 @@ impl GameplayActivity {
                     );
                 }
                 CellAnimationType::Move => {
-                    let progress =
-                        inverse_lerp(0.0..=0.6_f32, cell.duration.as_secs_f32());
+                    let progress = inverse_lerp(0.0..=0.6_f32, cell.duration.as_secs_f32());
                     let dest = cell.dest.as_ref().unwrap();
                     let rect = rect_move(
                         cols[cell.src.x][cell.src.y],
@@ -425,8 +427,16 @@ impl Activity for GameplayActivity {
             self.gameplay_update_input(event);
         }
 
-        if self.should_exit && self.game_over {
-            data_manager!(save_current_player, self.get_save());
+        if self.should_exit && self.game_over && !self.record_saved {
+            let mut player = self.get_save();
+            player.records = vec![PlayerRecord {
+                score: player.best_score,
+                time: player.best_time,
+                timestamp: player.best_timestamp,
+            }];
+            if let Some(_) = data_manager!(save_record, player) {
+                self.record_saved = true;
+            };
         }
 
         if self.game_over {

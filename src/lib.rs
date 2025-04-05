@@ -9,7 +9,7 @@ use app::{
 };
 use jni::{
     JNIEnv, JavaVM,
-    objects::{JClass, JValueGen},
+    objects::{JClass, JObject},
 };
 
 mod app;
@@ -20,18 +20,17 @@ fn start_thread(rx: Receiver<Request>, tx: Sender<Response>, vm: JavaVM) {
         let tx = tx;
         let mut env = vm.attach_current_thread_as_daemon().unwrap();
         let player_service = env
-            .find_class("com/smoother/TacticalGrid2048/GlobalVariants")
+            .find_class("com/smoother/TacticalGrid2048/GlobalVariables")
             .unwrap();
-        let service = env
+        let service: JObject<'_> = env
             .get_static_field(
                 player_service,
                 "playerService",
                 "Lcom/smoother/TacticalGrid2048/service/PlayerService;",
             )
+            .unwrap()
+            .try_into()
             .unwrap();
-        let JValueGen::Object(service) = service else {
-            panic!("Type of PlayerService is incorrect")
-        };
 
         loop {
             let req = rx.recv().unwrap();
@@ -93,12 +92,9 @@ pub extern "system" fn Java_com_smoother_TacticalGrid2048_view_View_startAndJoin
 ) {
     let is_first_launch = {
         let utils = env
-            .find_class("com/smoother/TacticalGrid2048/Utils")
+            .find_class("com/smoother/TacticalGrid2048/GlobalVariables")
             .unwrap();
-        env.call_static_method(utils, "isFirstLaunch", "()Z", &[])
-            .unwrap()
-            .z()
-            .unwrap()
+        env.get_static_field(utils, "isFirstLaunch", "Z").unwrap().z().unwrap()
     };
     let vm = env.get_java_vm().unwrap();
 
