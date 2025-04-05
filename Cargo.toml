@@ -24,3 +24,11 @@ ratatui-image = "5.0.0"
 tui-rain = "1.0.1"
 tui-textarea = "0.7.0"
 unicode-width = "0.2.0"
+
+[profile.release]
+opt-level = 3
+strip = true
+lto = true
+
+[profile.release.package."*"]
+opt-level = 3
