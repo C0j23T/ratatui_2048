@@ -230,11 +230,11 @@ where
     if list.is_null() {
         return Ok(Vec::default());
     }
-    let size = env.call_method(&list, "size", "()I", &[])?.i()?;
+    let size = env.call_method(list, "size", "()I", &[])?.i()?;
     let mut result = Vec::new();
     for i in 0..size {
         let obj = env.call_method(
-            &list,
+            list,
             "get",
             "(I)Ljava/lang/Object;",
             &[jni::objects::JValueGen::Int(i)],
@@ -321,8 +321,8 @@ fn new_player<'local>(
     player: Player,
 ) -> jni::errors::Result<JObject<'local>> {
     let array_list = env.new_object("java/util/ArrayList", "()V", &[])?;
-    let mut it = player.records.into_iter();
-    while let Some(x) = it.next() {
+    let it = player.records.into_iter();
+    for x in it {
         let record = new_player_record(env, player.id, x)?;
         env.call_method(
             &array_list,

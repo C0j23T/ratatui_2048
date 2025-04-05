@@ -40,8 +40,8 @@ use super::{
     dialog::{DIALOG_MANAGER, Dialog},
 };
 
-static MOMOI: &'static [u8] = include_bytes!("../manage/momoi.gif");
-static DORO: &'static [u8] = include_bytes!("../manage/doro.gif");
+static MOMOI: &[u8] = include_bytes!("../manage/momoi.gif");
+static DORO: &[u8] = include_bytes!("../manage/doro.gif");
 
 pub struct ManageActivity<'a> {
     pub should_exit: bool,

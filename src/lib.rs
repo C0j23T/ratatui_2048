@@ -35,53 +35,52 @@ fn start_thread(rx: Receiver<Request>, tx: Sender<Response>, vm: JavaVM) {
 
         loop {
             let req = rx.recv().unwrap();
-            let rsp: ResponseBody;
-            match req.0 {
+            let rsp = match req.0 {
                 RequestBody::GetCurrentPlayer => {
                     let result = app::data::jni::get_current_player(&mut env, &service).unwrap();
-                    rsp = ResponseBody::GetCurrentPlayer(result);
+                    ResponseBody::GetCurrentPlayer(result)
                 }
                 RequestBody::VerifyAccount(username, password) => {
                     let result =
                         app::data::jni::verify_account(&mut env, &service, username, password)
                             .unwrap();
-                    rsp = ResponseBody::VerifyAccount(result);
+                    ResponseBody::VerifyAccount(result)
                 }
                 RequestBody::RegisterAccount(username, password) => {
                     let result =
                         app::data::jni::register_account(&mut env, &service, username, password)
                             .unwrap();
-                    rsp = ResponseBody::RegisterAccount(result);
+                    ResponseBody::RegisterAccount(result)
                 }
                 RequestBody::GetPlayersBestExceptSelf => {
                     let result =
                         app::data::jni::get_players_best_except_self(&mut env, &service).unwrap();
-                    rsp = ResponseBody::GetPlayersBestExceptSelf(result);
+                    ResponseBody::GetPlayersBestExceptSelf(result)
                 }
                 RequestBody::GetPlayersExceptSelf => {
                     let result =
                         app::data::jni::get_players_except_self(&mut env, &service).unwrap();
-                    rsp = ResponseBody::GetPlayersExceptSelf(result);
+                    ResponseBody::GetPlayersExceptSelf(result)
                 }
                 RequestBody::SaveCurrentPlayer(player) => {
                     let result =
                         app::data::jni::save_current_player(&mut env, &service, player).unwrap();
-                    rsp = ResponseBody::SaveCurrentPlayer(result)
+                    ResponseBody::SaveCurrentPlayer(result)
                 }
                 RequestBody::FindPlayer(player) => {
                     let result = app::data::jni::find_player(&mut env, &service, player).unwrap();
-                    rsp = ResponseBody::FindPlayer(result)
+                    ResponseBody::FindPlayer(result)
                 }
                 RequestBody::UpdatePlayer(player) => {
                     let result = app::data::jni::update_player(&mut env, &service, player).unwrap();
-                    rsp = ResponseBody::UpdatePlayer(result)
+                    ResponseBody::UpdatePlayer(result)
                 }
                 RequestBody::RemovePlayer(player) => {
                     let result = app::data::jni::remove_player(&mut env, &service, player).unwrap();
-                    rsp = ResponseBody::RemovePlayer(result)
+                    ResponseBody::RemovePlayer(result)
                 }
                 RequestBody::Exit => break,
-            }
+            };
             tx.send((rsp, req.1)).unwrap();
         }
     });
@@ -131,6 +130,5 @@ pub extern "system" fn Java_com_smoother_TacticalGrid2048_view_View_startAndJoin
     if let Err(e) = req_tx.send((RequestBody::Exit, 0)) {
         env.throw(("java/lang/IllegalStateException", format!("{e:?}")))
             .unwrap();
-        return;
     }
 }
