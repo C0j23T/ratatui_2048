@@ -18,8 +18,8 @@ use super::{DataManager, TryRecvError};
 pub enum RequestBody {
     GetCurrentPlayer,
     GetPlayersBestExceptSelf,
-    GetPlayersExceptSelf,
-    SaveCurrentPlayer(Player),
+    GetPlayers,
+    SaveRecord(Player),
     VerifyAccount(String, String),
     RegisterAccount(String, String),
     FindPlayer(Player),
@@ -33,8 +33,8 @@ impl RequestBody {
         match self {
             Self::GetCurrentPlayer => 0,
             Self::GetPlayersBestExceptSelf => 1,
-            Self::GetPlayersExceptSelf => 2,
-            Self::SaveCurrentPlayer { .. } => 3,
+            Self::GetPlayers => 2,
+            Self::SaveRecord { .. } => 3,
             Self::VerifyAccount { .. } => 4,
             Self::RegisterAccount { .. } => 5,
             Self::FindPlayer { .. } => 6,
@@ -49,8 +49,8 @@ impl RequestBody {
 pub enum ResponseBody {
     GetCurrentPlayer(Player),
     GetPlayersBestExceptSelf(Vec<Player>),
-    GetPlayersExceptSelf(Vec<Player>),
-    SaveCurrentPlayer(bool),
+    GetPlayers(Vec<Player>),
+    SaveRecord(bool),
     VerifyAccount(Option<Player>),
     RegisterAccount(Option<Player>),
     FindPlayer(Vec<Player>),
@@ -182,12 +182,12 @@ impl DataManager for JniDataManager {
         impl_request_response!(self, GetPlayersBestExceptSelf, GetPlayersBestExceptSelf);
     }
 
-    fn get_players_except_self(&mut self) -> Result<Vec<Player>, TryRecvError> {
-        impl_request_response!(self, GetPlayersExceptSelf, GetPlayersExceptSelf);
+    fn get_players(&mut self) -> Result<Vec<Player>, TryRecvError> {
+        impl_request_response!(self, GetPlayers, GetPlayers);
     }
 
     fn save_record(&mut self, player: Player) -> Result<bool, TryRecvError> {
-        impl_request_response!(self, SaveCurrentPlayer(player), SaveCurrentPlayer);
+        impl_request_response!(self, SaveRecord(player), SaveRecord);
     }
 
     fn verify_account(
@@ -381,11 +381,11 @@ pub fn get_players_best_except_self(
     Ok(result)
 }
 
-pub fn get_players_except_self(
+pub fn get_players(
     env: &mut JNIEnv<'_>,
     service: &JObject<'_>,
 ) -> jni::errors::Result<Vec<Player>> {
-    let player = env.call_method(service, "getPlayersExceptSelf", "()Ljava/util/List;", &[])?;
+    let player = env.call_method(service, "getPlayers", "()Ljava/util/List;", &[])?;
     let JValueGen::Object(o) = player else {
         return Ok(Vec::default());
     };
@@ -399,7 +399,7 @@ pub fn get_players_except_self(
     Ok(result)
 }
 
-pub fn save_current_player(
+pub fn save_record(
     env: &mut JNIEnv<'_>,
     service: &JObject<'_>,
     player: Player,
@@ -407,7 +407,7 @@ pub fn save_current_player(
     let player = new_player(env, player)?;
     env.call_method(
         service,
-        "saveCurrentPlayer",
+        "saveRecord",
         "(Lcom/smoother/TacticalGrid2048/entity/Player;)Z",
         &[JValueGen::Object(&player)],
     )?

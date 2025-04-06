@@ -82,7 +82,7 @@ impl DataManager for DummyDataManager {
         Ok(Self::gen_example_players())
     }
 
-    fn get_players_except_self(&mut self) -> Result<Vec<Player>, TryRecvError> {
+    fn get_players(&mut self) -> Result<Vec<Player>, TryRecvError> {
         Ok(Self::gen_example_players())
     }
 

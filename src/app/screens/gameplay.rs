@@ -78,6 +78,7 @@ impl GameplayActivity {
         }
         if matches!(key.code, KeyCode::Char('q')) || matches!(key.code, KeyCode::Esc) {
             self.should_exit = true;
+            self.record_saved = true;
         }
         if self.game_over {
             return;

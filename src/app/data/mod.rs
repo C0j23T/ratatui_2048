@@ -28,7 +28,7 @@ pub trait DataManager: Send {
 
     fn get_players_best_except_self(&mut self) -> Result<Vec<Player>, TryRecvError>;
 
-    fn get_players_except_self(&mut self) -> Result<Vec<Player>, TryRecvError>;
+    fn get_players(&mut self) -> Result<Vec<Player>, TryRecvError>;
 
     fn save_record(&mut self, player: Player) -> Result<bool, TryRecvError>;
 

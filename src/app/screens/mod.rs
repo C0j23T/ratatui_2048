@@ -7,7 +7,6 @@ use ratatui::{Frame, Terminal, prelude::Backend};
 use crate::data_manager;
 
 pub(crate) mod dialog;
-mod find_player;
 mod gameplay;
 mod manage;
 mod menu;
@@ -119,7 +118,8 @@ impl App<'_> {
 
     fn update_remove(&mut self, frame: &mut Frame<'_>, event: Option<Event>) {
         if self.state_changed {
-            self.remove_activity = Some(manage::ManageActivity::new());
+            let self_id = self.menu_activity.as_ref().map_or(0, |x| x.player.id);
+            self.remove_activity = Some(manage::ManageActivity::new(self_id));
         }
 
         let remove = self.remove_activity.as_mut().unwrap();

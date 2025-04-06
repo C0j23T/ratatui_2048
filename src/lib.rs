@@ -56,15 +56,15 @@ fn start_thread(rx: Receiver<Request>, tx: Sender<Response>, vm: JavaVM) {
                         app::data::jni::get_players_best_except_self(&mut env, &service).unwrap();
                     ResponseBody::GetPlayersBestExceptSelf(result)
                 }
-                RequestBody::GetPlayersExceptSelf => {
+                RequestBody::GetPlayers => {
                     let result =
-                        app::data::jni::get_players_except_self(&mut env, &service).unwrap();
-                    ResponseBody::GetPlayersExceptSelf(result)
+                        app::data::jni::get_players(&mut env, &service).unwrap();
+                    ResponseBody::GetPlayers(result)
                 }
-                RequestBody::SaveCurrentPlayer(player) => {
+                RequestBody::SaveRecord(player) => {
                     let result =
-                        app::data::jni::save_current_player(&mut env, &service, player).unwrap();
-                    ResponseBody::SaveCurrentPlayer(result)
+                        app::data::jni::save_record(&mut env, &service, player).unwrap();
+                    ResponseBody::SaveRecord(result)
                 }
                 RequestBody::FindPlayer(player) => {
                     let result = app::data::jni::find_player(&mut env, &service, player).unwrap();

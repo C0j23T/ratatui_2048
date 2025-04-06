@@ -48,6 +48,7 @@ pub struct ManageActivity<'a> {
     selector: PlayerListSelector<'a>,
     in_selector: bool,
     player: Player,
+    self_id: i32,
     bg_time: Duration,
     app_time: Duration,
 
@@ -76,7 +77,7 @@ pub struct ManageActivity<'a> {
 }
 
 impl ManageActivity<'_> {
-    pub fn new() -> Self {
+    pub fn new(self_id: i32) -> Self {
         let mut rng = rand::thread_rng();
         let flag = rng.gen_bool(0.5);
         let cursor = Cursor::new(if flag { MOMOI } else { DORO });
@@ -97,6 +98,7 @@ impl ManageActivity<'_> {
             in_selector: true,
             should_exit: false,
             player: Player::default(),
+            self_id,
             bg_time: Duration::default(),
             app_time: Duration::default(),
             avatar: frames,
@@ -173,12 +175,16 @@ impl ManageActivity<'_> {
     }
 
     fn draw_info(&self, rect: Rect, frame: &mut Frame<'_>) {
-        let time = (chrono::Utc
-            .timestamp_millis_opt(self.player.best_timestamp)
-            .unwrap()
-            + chrono::Duration::hours(8))
-        .format("%Y年%m月%d日 %H:%M:%S")
-        .to_string();
+        let time = if self.player.best_timestamp != 0 {
+            (chrono::Utc
+                .timestamp_millis_opt(self.player.best_timestamp)
+                .unwrap()
+                + chrono::Duration::hours(8))
+            .format("%Y年%m月%d日 %H:%M:%S")
+            .to_string()
+        } else {
+            String::from("无")
+        };
         let para = Paragraph::new(format!(
             indoc::indoc! {"
             ID:   {}
@@ -323,7 +329,7 @@ impl ManageActivity<'_> {
     }
 
     fn draw_hint(&self, area: Rect, frame: &mut Frame<'_>) {
-        let para = Paragraph::new("( ← ↑ ↓ → ) 移动光标 | ( S ) 返回选择界面").block(
+        let para = Paragraph::new("( ← ↑ ↓ → ) 移动光标 | ( S ) 返回选择界面 | ( ESC ) 退出").block(
             Block::bordered()
                 .border_type(BorderType::Rounded)
                 .fg(tailwind::YELLOW.c400),
@@ -498,14 +504,25 @@ impl ManageActivity<'_> {
                     }
 
                     let mut dialog_manager = DIALOG_MANAGER.write().unwrap();
-                    dialog_manager.push(Dialog::new(
-                        " 你确定吗？ ",
-                        "如果你删除该玩家，它将永远会消失。（很长时间！）",
-                        Alignment::Left,
-                        false,
-                        vec![String::from("确定"), String::from("取消")],
-                        Some(self.remove_choice.clone()),
-                    ));
+                    if self.player.id == self.self_id {
+                        dialog_manager.push(Dialog::new(
+                            " 否定 ",
+                            "你不能删除你自己",
+                            Alignment::Left,
+                            false,
+                            vec![String::from("确定")],
+                            None,
+                        ));
+                    } else {
+                        dialog_manager.push(Dialog::new(
+                            " 你确定吗？ ",
+                            "如果你删除该玩家，它将永远会消失。（很长时间！）",
+                            Alignment::Left,
+                            false,
+                            vec![String::from("确定"), String::from("取消")],
+                            Some(self.remove_choice.clone()),
+                        ));
+                    }
                 } else {
                     return true;
                 }

@@ -212,7 +212,11 @@ impl RankingActivity {
                 Cell::from(data.name.as_str()),
                 Cell::from(self.itoa_buffer.format(data.best_score).to_string()),
                 Cell::from(self.itoa_buffer.format(data.best_time).to_string()),
-                Cell::from(format_datetime(data.best_timestamp)),
+                Cell::from(if data.best_timestamp != 0 {
+                    format_datetime(data.best_timestamp)
+                } else {
+                    String::from("无")
+                }),
             ]
             .into_iter()
             .collect::<Row>()

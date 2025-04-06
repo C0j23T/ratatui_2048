@@ -32,7 +32,7 @@ use super::{
 #[derive(Default)]
 pub struct MenuActivity<'a> {
     pub should_exit: bool,
-    player: Player,
+    pub player: Player,
     state: MenuState<'a>,
     focus: usize,
     selected_time: Duration,

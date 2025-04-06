@@ -177,11 +177,11 @@ impl PlayerListSelector<'_> {
     fn draw_hint(&mut self, rect: Rect, frame: &mut Frame<'_>) {
         let hint = if matches!(self.cursor_state, CursorState::Table) {
             indoc::indoc! {"
-                ( F ) 搜索 | ( ⏎ ) 确定 | ( ← → ) 切换 查找 / 选择
+                ( F ) 搜索 | ( ⏎ ) 确定 | ( ← → ) 切换 查找 / 选择 | ( ESC ) 退出
             "}
         } else {
             indoc::indoc! {"
-                ( ↑ ↓ ) 切换预选条目 | ( ← → ) 切换 查找 / 选择
+                ( ↑ ↓ ) 切换预选条目 | ( ← → ) 切换 查找 / 选择 | ( ESC ) 退出
             "}
         };
         let para = Paragraph::new(hint)
@@ -372,17 +372,21 @@ impl Activity for PlayerListSelector<'_> {
         }
 
         if !self.players_requested {
-            if let Some(players) = data_manager!(get_players_except_self) {
+            if let Some(players) = data_manager!(get_players) {
                 let mut buffer = itoa::Buffer::new();
                 self.players_requested = true;
                 self.player_rows = players
                     .clone()
                     .into_iter()
                     .map(|x| {
-                        let time = (chrono::Utc.timestamp_millis_opt(x.best_timestamp).unwrap()
-                            + chrono::Duration::hours(8))
-                        .format("%Y-%m-%d %H:%M:%S")
-                        .to_string();
+                        let time = if x.best_timestamp != 0 {
+                            (chrono::Utc.timestamp_millis_opt(x.best_timestamp).unwrap()
+                                + chrono::Duration::hours(8))
+                            .format("%Y-%m-%d %H:%M:%S")
+                            .to_string()
+                        } else {
+                            String::from("无")
+                        };
                         [
                             Cell::from(buffer.format(x.id).to_string()),
                             Cell::from(x.name),
